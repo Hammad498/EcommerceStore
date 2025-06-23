@@ -100,6 +100,7 @@ export const editproduct = async (req, res) => {
 
     // If new images uploaded, delete old ones from Cloudinary
     const images = req.uploadedImages?.map(img => img.url) || [];
+
     if (images.length > 0 && product.images.length > 0) {
       for (const imageUrl of product.images) {
         const publicId = extractPublicId(imageUrl);
@@ -144,3 +145,44 @@ export const editproduct = async (req, res) => {
     });
   }
 };
+////////////////////////////////////////////////
+
+
+export const deleteProduct=async(req,res)=>{
+    try {
+        const productId=req.params.id;
+        if(!productId) {
+            return res.status(400).json({
+                success: false,
+                message: "Product ID is required"
+            });
+        }
+
+        const product=await Product.findById(productId);
+        if(!product) {
+            return res.status(404).json({
+                success: false,
+                message: "Product not found"
+            });
+        }
+
+        // Delete images from Cloudinary
+        for (const imageUrl of product.images) {
+            const publicId = extractPublicId(imageUrl);
+            await cloudinary.uploader.destroy(`adminUploads/${publicId}`);
+        }
+        await Product.findByIdAndDelete(productId);
+        res.status(200).json({
+            success: true,
+            message: "Product deleted successfully"
+        });
+
+    } catch (error) {
+        console.error("Error deleting product:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete product",
+            error: error.message || "Internal Server Error"
+        });
+    }
+}
