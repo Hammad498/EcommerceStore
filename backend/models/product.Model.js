@@ -1,21 +1,46 @@
 import mongoose from "mongoose";
 
 const variationSchema = new mongoose.Schema({
-  color: { type: String, required: true },
-  size: { type: String, required: true },
-  price: { type: Number, required: true },
-  stock: { type: Number, required: true },
+  color: {
+     type: String,
+      required: true 
+    },
+  size: { 
+    type: String,
+     required: true 
+    },
+  price: {
+     type: Number,
+      required: true 
+    },
+  stock: {
+     type: Number,
+      required: true 
+    },
   images: [{ type: String }] 
 }, { _id: false });
 
 const specSchema = new mongoose.Schema({
-  key: { type: String, required: true },
-  value: { type: String, required: true }
+  key: {
+     type: String,
+      required: true 
+    },
+  value: {
+     type: String,
+      required: true
+     }
 }, { _id: false });
 
 const reviewSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  rating: { type: Number, min: 1, max: 5 },
+  user: {
+     type: mongoose.Schema.Types.ObjectId,
+      ref: "User" 
+    },
+  rating: {
+     type: Number,
+      min: 1,
+       max: 5 
+    },
   comment: String,
   createdAt: { type: Date, default: Date.now }
 }, { _id: false });
@@ -25,10 +50,22 @@ const reviewSchema = new mongoose.Schema({
 
 
 const productSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  slug: { type: String, required: true, unique: true },
-  description: { type: String },
-  brand: { type: String, required: true },
+  title: {
+     type: String,
+      required: true 
+    },
+  slug: { 
+    type: String,
+     required: true,
+      unique: true 
+    },
+  description: {
+     type: String 
+    },
+  brand: {
+     type: String,
+      required: true 
+    },
   category: { 
     type: String, 
     enum: ["electronics", "furniture", "utensils"], 
