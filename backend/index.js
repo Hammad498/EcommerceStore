@@ -21,7 +21,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(fileUpload({
     useTempFiles: true,
-    tempFileDir: 'adminUploads/',
+    tempFileDir: '/temp/',
     createParentPath: true,
 }))
 
