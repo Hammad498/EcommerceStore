@@ -5,6 +5,7 @@ import connectDB from './config/db.js';
 import adminRoutes from './routes/admin/admin.Route.js';
 import fileUpload from 'express-fileupload';
 import bodyParser from 'body-parser';
+import productRoutes from './routes/admin/product.Route.js';
 
 dotenv.config();
 
@@ -20,13 +21,12 @@ app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(fileUpload({
     useTempFiles: true,
-    tempFileDir: 'uploads/',
+    tempFileDir: 'adminUploads/',
     createParentPath: true,
 }))
-app.get('/', (req, res) => {
-  res.send('Hello World!');
-});
+
 app.use('/api', adminRoutes);
+app.use('/api/admin/product', productRoutes);
 
 
 app.listen(PORT, () => {
