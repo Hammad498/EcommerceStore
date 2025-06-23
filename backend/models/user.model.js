@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 const userSchema=new mongoose.Schema({
     name:{
@@ -24,47 +25,8 @@ const userSchema=new mongoose.Schema({
         enum:["user", "admin"],
         default:"user",
     },
-    address:{
-        street:{
-            type:String,
-            required:true,
-        },
-        city:{
-            type:String,
-            required:true,
-        },
-        state:{
-            type:String,
-            required:true,
-        },
-        country:{
-            type:String,
-            required:true,
-        },
-        region:{
-            type:String,
-            required:true,
-        },
-        zip:{
-            type:String,
-            required:true,
-        },
-        addressLine1:{
-            type:String,
-            required:true,
-        },
-        addressLine2:{
-            type:String,
-            required:true,
-        },
-
     
-    },
-    phone:{
-        type:String,
-        required:true,
-        match: /^\d{10}$/,
-    },
+    
     isVerified:{
         type:Boolean,
         default:false,
@@ -98,11 +60,14 @@ userSchema.methods.matchPassword=async function(enteredPassword){
     return await bcrypt.compare(enteredPassword, this.password);
 }
 
-userSchema.methods.generateToken=function(){
-    return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
-        expiresIn: '30d'
-    });
-}
+userSchema.methods.generateToken = function () {
+    return jwt.sign(
+        { id: this._id, role: this.role },
+        process.env.JWT_SECRET,
+        { expiresIn: '30d' }
+    );
+};
+
 
 const User=mongoose.model("User",userSchema);
 export default User;

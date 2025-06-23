@@ -1,28 +1,24 @@
-///a middleware on login to check if the user is an admin
+// middlewares/roles/isAdmin.js
 import jwt from 'jsonwebtoken';
 
 export const isAdmin = (req, res, next) => {
-    const token = req.cookies.token;
+    const authHeader = req.headers.authorization;
 
-    if (!token) {
-        return res.status(401).json({ message: 'Access denied, no token provided.' });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: 'No token, authorization denied' });
     }
+
+    const token = authHeader.split(" ")[1];
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
-
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ message: 'Access denied, admin role required.' });
+        if (decoded.role !== "admin") {
+            return res.status(403).json({ message: "Access denied, admin only." });
         }
 
+        req.user = decoded;
         next();
     } catch (error) {
-        return res.status(400).json({ message: 'Invalid token.' });
+        return res.status(401).json({ message: "Token is invalid or expired." });
     }
-}
-
-
-/////////////////
-
-
+};

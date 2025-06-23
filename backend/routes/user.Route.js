@@ -1,11 +1,14 @@
 import Router from 'express';
-import { loginUser } from '../controllers/user.Controller.js';
-import { loginValidation } from '../validation/user.Validation.js';
+import { loginAdmin,registerAdmin} from '../controllers/admin.Controller.js';
+import { loginValidation,registerValidation } from '../validation/user.Validation.js';
 import { isAdmin } from '../middlewares/roles/isAdmin.js';
 
 
 const router= Router();
 
-router.post('/login',loginValidation,isAdmin,loginUser);
+
+router.post('/login', loginValidation, loginAdmin); 
+router.post('/register', registerValidation, registerAdmin); 
+
 
 export default router;
