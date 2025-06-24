@@ -1,32 +1,51 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
-const categorySchema = new mongoose.Schema({
-  name: {
+
+const categorySchema=new mongoose.Schema({
+    name: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    trim: true
   },
   slug: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    lowercase: true
   },
   description: {
-    type: String
+    type: String,
+    trim: true
   },
-  parentCategory: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Category",
-    default: null
+  image: {
+    type: String, 
   },
-  image: [String],
-  filterAttributes: [
-    {
-      name: { type: String, required: true },    
-      type: { type: String, enum: ["enum", "string", "number"], default: "enum" },
-      options: [String] 
-    }
-  ]
-}, { timestamps: true });
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  // Define what attributes this category products can have
+  attributes: [{
+    name: {
+      type: String,
+      required: true
+    }, // e.g., "Color", "Memory", "Storage", "Size"
+    type: {
+      type: String,
+      enum: ['dropdown', 'color', 'size', 'text'],
+      required: true
+    },
+    required: {
+      type: Boolean,
+      default: false
+    },
+    options: [String] // e.g., ["Space Gray", "Silver"] for Color
+  }]
+}
+, {
+  timestamps: true,}
+);
 
-export default mongoose.model("Category", categorySchema);
+const Category = mongoose.model('Category', categorySchema);
+export default Category;
