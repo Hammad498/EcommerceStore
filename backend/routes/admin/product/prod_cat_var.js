@@ -5,12 +5,17 @@ import { uploadImages } from '../../../middlewares/cloudinary/adminUpload.js';
 
 
 
+
 const router = Router();
 
 router.get('/',isAdmin,getAllCategories);
 router.post('/',isAdmin,uploadImages,createCategory);
 router.put('/:id',isAdmin,uploadImages,updateCategory); 
 router.delete('/:id',isAdmin,deleteCategory);
+
+
+
+
 
 
 
