@@ -19,9 +19,7 @@ const categorySchema = new mongoose.Schema({
     ref: "Category",
     default: null
   },
-  image: {
-    type: String
-  },
+  image: [String],
   filterAttributes: [
     {
       name: { type: String, required: true },    
