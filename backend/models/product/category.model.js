@@ -18,9 +18,8 @@ const categorySchema=new mongoose.Schema({
     type: String,
     trim: true
   },
-  image: {
-    type: String, 
-  },
+  images: { type: [String], default: [] },
+
   isActive: {
     type: Boolean,
     default: true

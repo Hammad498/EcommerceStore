@@ -6,6 +6,7 @@ import adminRoutes from './routes/admin/admin.Route.js';
 import fileUpload from 'express-fileupload';
 import bodyParser from 'body-parser';
 import productRoutes from './routes/admin/product.Route.js';
+import categoryRoutes from './routes/admin/product/prod_cat_var.js';
 
 
 dotenv.config();
@@ -28,6 +29,8 @@ app.use(fileUpload({
 
 app.use('/api', adminRoutes);
 app.use('/api/admin/product', productRoutes);
+
+app.use('/api/admin/category', categoryRoutes);
 
 
 
