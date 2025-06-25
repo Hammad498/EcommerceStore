@@ -145,3 +145,38 @@ export const getAllProducts=async(req,res)=>{
 
 ///////////////////////////////////
 
+export const getById=async(req,res)=>{
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Product ID is required",
+      });
+    }
+    const product=await Product.findById(id).populate({
+      path:"category",
+      select:"name"
+    }).populate({
+      path:"createdBy", select:"name"
+    }).select("-__v -createdBy.email -createdBy.role");
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+    res.status(200).json({
+      success: true,
+      message: "Product fetched successfully",
+      data: product,
+    })
+  } catch (error) {
+    console.error("Error fetching product by ID:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch product",
+      error: error.message,
+    });
+  }
+}
