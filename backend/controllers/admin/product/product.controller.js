@@ -1,7 +1,9 @@
 
-import ProductVariation from "../../../models/product/product.model.js";
+import Product from "../../../models/product/product.model.js";
 import Category from "../../../models/product/category.model.js";
 import slugify from "slugify";
+
+
 
 export const createProduct = async (req, res) => {
   try {
@@ -10,6 +12,7 @@ export const createProduct = async (req, res) => {
       description,
       brand,
       category,
+      badges,
       baseSKU,
       variations,
       metaTitle,
@@ -18,15 +21,13 @@ export const createProduct = async (req, res) => {
       slug,
     } = req.body;
 
-    // Validate required fields
-    if (!title || !description || !brand || !category || !baseSKU || !variations) {
+    if (!title || !description || !brand ||!badges || !category || !baseSKU || !variations || variations.length === 0) {
       return res.status(400).json({
         success: false,
         message: "Missing required fields",
       });
     }
 
-    // Check if category exists
     const categoryDoc = await Category.findById(category);
     if (!categoryDoc) {
       return res.status(404).json({ success: false, message: "Category not found" });
@@ -39,17 +40,35 @@ export const createProduct = async (req, res) => {
       alt: `Main image for ${title}`,
     }));
 
-    const parsedVariations = typeof variations === "string" ? JSON.parse(variations) : variations;
+    let parsedVariations;
+    try {
+      parsedVariations = typeof variations === "string" ? JSON.parse(variations) : variations;
+    } catch (e) {
+      return res.status(400).json({ success: false, message: "Invalid variations format" });
+    }
+
+    
+    const requiredAttributes = categoryDoc.attributes.filter(attr => attr.required).map(attr => attr.name.toLowerCase());
+    for (const [index, variation] of parsedVariations.entries()) {
+      for (const attrName of requiredAttributes) {
+        if (!variation.attributes || !variation.attributes[attrName]) {
+          return res.status(400).json({
+            success: false,
+            message: `Variation ${index + 1} is missing required attribute: ${attrName}`,
+          });
+        }
+      }
+    }
 
     const processedVariations = parsedVariations.map((variation, index) => {
-      const variantSKU = baseSKU + "-" + (index + 1);
+      const variantSKU = `${baseSKU}-${index + 1}`;
       return {
         variantSKU,
-        attributes: variation.attributes ? new Map(Object.entries(variation.attributes)) : new Map(),
+        attributes: variation.attributes,
         price: variation.price ?? 0,
         discountPrice: variation.discountPrice ?? 0,
         stock: variation.stock ?? 0,
-        isActive: variation.isActive !== undefined ? variation.isActive : true,
+        isActive: variation.isActive !== false,
         images: (variation.uploadedImages || []).map((img) => ({
           url: img.url,
           alt: img.alt || `Image for ${variantSKU}`,
@@ -57,19 +76,20 @@ export const createProduct = async (req, res) => {
       };
     });
 
-    const product = new ProductVariation({
+    const product = new Product({
       title,
       slug: generatedSlug,
       description,
       brand,
       category: categoryDoc._id,
+      badges,
       baseSKU,
       variations: processedVariations,
       metaTitle,
       metaDescription,
-      isFeatured: isFeatured || false,
+      isFeatured: !!isFeatured,
       images,
-      createdBy: req.user._id,
+      createdBy: req.user?._id,
     });
 
     await product.save();
@@ -79,6 +99,7 @@ export const createProduct = async (req, res) => {
       message: "Product created successfully",
       data: product,
     });
+
   } catch (error) {
     console.error("Error creating product:", error);
     res.status(500).json({
@@ -88,3 +109,29 @@ export const createProduct = async (req, res) => {
     });
   }
 };
+
+///////////////////////////////////////////////////////////////////
+
+export const getAllProducts=async(req,res)=>{
+  try {
+    const product=await Product.find().populate('category', 'title slug').sorted({ createdAt: -1 }).exec();
+    if(!product || product.length === 0){
+      return res.status(404).json({
+        success: false,
+        message: "No products found",
+      });
+    }
+    res.status(200).json({
+      success: true,
+      message: "Products fetched successfully",
+      data: product,
+    });
+  } catch (error) {
+    console.log("Error in fetching all the products!");
+    res.status(500).json({
+      success:false,
+      message:"Failed to fetch:server error",
+      error:error.message
+    })
+  }
+}

@@ -39,7 +39,7 @@ export const createCategory = async (req, res) => {
       });
     }
 
-    // Attributes stringified? Parse it
+    
     let parsedAttributes = [];
     if (attributes) {
       try {
@@ -57,7 +57,7 @@ export const createCategory = async (req, res) => {
       slug: sluged,
       description,
       attributes: parsedAttributes,
-      image: images,
+      images: images,
     });
 
     await category.save();
@@ -65,7 +65,7 @@ export const createCategory = async (req, res) => {
     res.status(201).json({
       success: true,
       message: "Category created successfully",
-      data: category,
+      data: [category,category._id],
     });
   } catch (error) {
     console.error("Error creating category:", error);
@@ -123,6 +123,7 @@ export const updateCategory = async (req, res) => {
       success: true,
       message: "Category updated successfully",
       data: updatedCategory,
+      
     });
 
   } catch (error) {

@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 const reviewSchema = new mongoose.Schema({
     product: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'ProductVariation',
+    ref: 'Product',
     required: true
   },
   user: {
@@ -12,9 +12,9 @@ const reviewSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  // Optional: specific variation reviewed
+  
   variation: {
-    type: String // Store the variantSKU
+    type: String 
   },
   rating: {
     type: Number,
@@ -68,7 +68,7 @@ reviewSchema.post('remove', async function() {
 
 async function updateProductRating(productId) {
   const Review = mongoose.model('Review');
-  const ProductVariation = mongoose.model('ProductVariation');
+  const Product = mongoose.model('Product');
   
   const stats = await Review.aggregate([
     { $match: { product: productId, isActive: true } },
@@ -86,5 +86,5 @@ async function updateProductRating(productId) {
     count: stats[0].totalReviews
   } : { average: 0, count: 0 };
   
-  await ProductVariation.findByIdAndUpdate(productId, { ratings: rating });
+  await Product.findByIdAndUpdate(productId, { ratings: rating });
 }
