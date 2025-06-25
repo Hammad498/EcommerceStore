@@ -1,6 +1,7 @@
 import Category from "../../../models/product/category.model.js";
 import slugify from "slugify";
 
+
 export const getAllCategories = async (req, res) => {
   try {
     const categories = await Category.find({ isActive: true }).sort({
@@ -25,6 +26,8 @@ export const createCategory = async (req, res) => {
     if (!name) {
       return res.status(400).json({ success: false, message: "Name is required" });
     }
+
+    
 
     const sluged = slug || slugify(name, { lower: true, strict: true });
 

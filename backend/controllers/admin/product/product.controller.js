@@ -2,6 +2,7 @@
 import Product from "../../../models/product/product.model.js";
 import Category from "../../../models/product/category.model.js";
 import slugify from "slugify";
+import {skuGenerator} from '../../../services/skuGenerator.js'
 
 
 
@@ -13,7 +14,6 @@ export const createProduct = async (req, res) => {
       brand,
       category,
       badges,
-      baseSKU,
       variations,
       metaTitle,
       metaDescription,
@@ -21,12 +21,14 @@ export const createProduct = async (req, res) => {
       slug,
     } = req.body;
 
-    if (!title || !description || !brand ||!badges || !category || !baseSKU || !variations || variations.length === 0) {
+    if (!title || !description || !brand ||!badges || !category  || !variations || variations.length === 0) {
       return res.status(400).json({
         success: false,
         message: "Missing required fields",
       });
     }
+
+    const baseSKU=skuGenerator({title});
 
     const categoryDoc = await Category.findById(category);
     if (!categoryDoc) {
@@ -61,7 +63,7 @@ export const createProduct = async (req, res) => {
     }
 
     const processedVariations = parsedVariations.map((variation, index) => {
-      const variantSKU = `${baseSKU}-${index + 1}`;
+      const variantSKU = skuGenerator({title:baseSKU, attributes: variation.attributes}) || `${baseSKU}-${index + 1}`;
       return {
         variantSKU,
         attributes: variation.attributes,
@@ -76,6 +78,8 @@ export const createProduct = async (req, res) => {
       };
     });
 
+    
+
     const product = new Product({
       title,
       slug: generatedSlug,
@@ -83,7 +87,7 @@ export const createProduct = async (req, res) => {
       brand,
       category: categoryDoc._id,
       badges,
-      baseSKU,
+      baseSKU: baseSKU,
       variations: processedVariations,
       metaTitle,
       metaDescription,
