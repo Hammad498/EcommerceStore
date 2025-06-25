@@ -180,3 +180,112 @@ export const getById=async(req,res)=>{
     });
   }
 }
+
+////////////////////////
+
+
+export const editproduct=async(req,res)=>{
+  try{
+    const {id}=req.params;
+    if(!id){
+      return res.status(400).json({
+        success: false,
+        message: "Product ID is required",
+      })
+    }
+    const product=await Product.findById(id);
+    if(!product){
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      })
+    }
+    const {title,description,brand,category,badges,baseSKU,variations,metaTitle,metaDescription,isFeatured,slug}=req.body;
+    if(!title || !description ||!slug || !brand || !badges || !category || !baseSKU || !variations || variations.length === 0){
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
+      })
+    }
+    const categoryDoc=await Category.findById(category);
+    if(!categoryDoc){
+      return res.status(404).json({
+        success: false,
+        message: "Category not found",
+      })
+    }
+    
+
+    const generatedSlug = slug || slugify(title, { lower: true, strict: true });
+    const images = (req.uploadedImages || []).map((img) => ({
+      url: img.url,
+      alt: `Main image for ${title}`,
+    }));
+    let parsedVariations;
+    try {
+      parsedVariations = typeof variations === "string" ? JSON.parse(variations) : variations;
+    } catch (e) {
+      return res.status(400).json({ success: false, message: "Invalid variations format" });
+    }
+
+    const requiredAttributes = categoryDoc.attributes.filter(attr => attr.required).map(attr => attr.name.toLowerCase());
+    for (const [index, variation] of parsedVariations.entries()) {
+      for (const attrName of requiredAttributes) {
+        if (!variation.attributes || !variation.attributes[attrName]) {
+          return res.status(400).json({
+            success: false,
+            message: `Variation ${index + 1} is missing required attribute: ${attrName}`,
+          });
+        }
+      }
+    }
+    
+    const processedVariations=parsedVariations.map((variation,index)=>{
+      const variantSKU=`${baseSKU}-${index +1}`;
+      return {
+        variantSKU,
+        attributes: variation.attributes,
+        price: variation.price ?? 0,
+        discountPrice: variation.discountPrice ?? 0,
+        stock: variation.stock ?? 0,
+        isActive: variation.isActive !== false,
+        images: (variation.uploadedImages || []).map((img) => ({
+          url: img.url,
+          alt: img.alt || `Image for ${variantSKU}`,
+        })),
+      }
+    })
+    const updatedProduct = await Product.findByIdAndUpdate(
+  id,
+  {
+    title,
+    description,
+    brand,
+    slug: generatedSlug,
+    category: categoryDoc._id,
+    badges,
+    baseSKU,
+    variations: processedVariations,
+    metaTitle,
+    metaDescription,
+    isFeatured: !!isFeatured,
+    images,
+    updatedBy: req.user?._id, 
+  },
+  { new: true }
+);
+
+    res.status(200).json({
+      success:true,
+      message:"Successfully updated!",
+      data:updatedProduct
+    })
+  }catch(error){
+    console.log("Error in editing product:", error);
+    res.status(500).json({
+      success:false,
+      message:"Failed to edit product: server error",
+      error:error.message
+    })
+  }
+}
