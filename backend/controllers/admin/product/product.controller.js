@@ -114,7 +114,13 @@ export const createProduct = async (req, res) => {
 
 export const getAllProducts=async(req,res)=>{
   try {
-    const product=await Product.find().populate('category', 'title slug').sorted({ createdAt: -1 }).exec();
+    const product=await Product.find({}).populate({
+      path:"category",
+      select:"name"
+    }).populate({
+      path:"createdBy", select:"name"
+    }).sort({createdAt:-1})
+    .select("-__v  -createdBy.email -createdBy.role");
     if(!product || product.length === 0){
       return res.status(404).json({
         success: false,
@@ -135,3 +141,7 @@ export const getAllProducts=async(req,res)=>{
     })
   }
 }
+
+
+///////////////////////////////////
+
