@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 import adminRoutes from './routes/admin/admin.Route.js';
+import userRoutes from './routes/user/user.Route.js';
 import fileUpload from 'express-fileupload';
 import bodyParser from 'body-parser';
 
@@ -21,7 +22,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+// app.use(bodyParser.json());
 app.use(fileUpload({
     useTempFiles: true,
     tempFileDir: '/temp/',
@@ -29,6 +30,7 @@ app.use(fileUpload({
 }))
 
 app.use('/api', adminRoutes);
+app.use('/api/user', userRoutes);
 
 
 app.use('/api/admin/category', categoryRoutes);

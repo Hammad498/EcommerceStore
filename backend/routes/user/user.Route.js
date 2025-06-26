@@ -16,9 +16,6 @@ router.post('/register', registerValidation, registerUser);
 
 
 
-/////////////////////////////
-//product CRUD By the ADMIN
-
 
 
 
