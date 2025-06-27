@@ -1,5 +1,6 @@
 import Cart from "../../models/cart.model.js";
 import { getCartIdentifier } from "../../services/cartIdentifier.js";
+import validateProductAndVariation from "../../validation/productCart.validation.js";
 
 
 
@@ -11,6 +12,9 @@ export const addToCart = async (req, res) => {
     if (!product || !quantity) {
       return res.status(400).json({ message: "Product and quantity are required" });
     }
+
+    const { valid, message } = await validateProductAndVariation(product, variation);
+    if (!valid) return res.status(400).json({ message });
 
     const identifier = getCartIdentifier(req);
     if (!identifier) {
@@ -110,6 +114,8 @@ export const updateCartItem=async(req,res)=>{
         if (!product || !quantity) {
             return res.status(400).json({ message: "Product and quantity are required" });
         }
+        const { valid, message } = await validateProductAndVariation(product, variation);
+    if (!valid) return res.status(400).json({ message });
         const identifier = getCartIdentifier(req);
         const query = identifier.type === "user"? { user: identifier.id, isOrdered: false } : { sessionId: identifier.id, isOrdered: false };
         const cart = await Cart.findOne(query);
@@ -156,6 +162,8 @@ export const removeFromCart=async(req,res)=>{
         if (!product || !variation) {
             return res.status(400).json({ message: "Product and variation are required" });
         }
+        const { valid, message } = await validateProductAndVariation(product, variation);
+    if (!valid) return res.status(400).json({ message });
         const identifier = getCartIdentifier(req);
         const query = identifier.type === "user"? { user: identifier.id, isOrdered: false } : { sessionId: identifier.id, isOrdered: false };
         const cart = await Cart.findOne(query);
