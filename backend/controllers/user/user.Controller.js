@@ -34,13 +34,7 @@ export const loginUser=async(req,res)=>{
 }
 
 
-//////////////////
-
-
-
-
-
-
+/////////////////////////////////////////////////////
 
 
 
@@ -51,7 +45,6 @@ export const registerUser = async (req, res) => {
         return res.status(400).json({ success: false, errors: errors.array() });
     }
 
-    
     const {
         name,
         email,

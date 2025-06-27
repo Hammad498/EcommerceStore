@@ -1,7 +1,7 @@
-// validation/user.Validation.js
+
 import { body, validationResult } from "express-validator";
 
-// Middleware to handle validation errors
+
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {

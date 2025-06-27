@@ -3,6 +3,7 @@ import Product from "../../../models/product/product.model.js";
 import Category from "../../../models/product/category.model.js";
 import slugify from "slugify";
 import {skuGenerator} from '../../../services/skuGenerator.js'
+import mongoose from "mongoose";
 
 
 
@@ -125,6 +126,7 @@ export const getAllProducts=async(req,res)=>{
       path:"createdBy", select:"name"
     }).sort({createdAt:-1})
     .select("-__v  -createdBy.email -createdBy.role");
+
     if(!product || product.length === 0){
       return res.status(404).json({
         success: false,
@@ -293,3 +295,49 @@ export const editproduct=async(req,res)=>{
     })
   }
 }
+
+
+///////////////////////////////////
+
+
+export const deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or missing product ID",
+      });
+    }
+
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found!",
+      });
+    }
+
+    const deleted = await Product.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Successfully deleted!",
+      data: deleted,
+    });
+
+  } catch (error) {
+    console.error('Error deleting product:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to delete the product! : Server error",
+      error: error.message || "Unknown error"
+    });
+  }
+};

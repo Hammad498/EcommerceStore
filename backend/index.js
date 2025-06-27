@@ -9,6 +9,7 @@ import bodyParser from 'body-parser';
 
 import categoryRoutes from './routes/admin/product/prod_cat_var.js';
 import productVariationRoutes from './routes/admin/product/productRoute.js'
+import reviewRoutes from './routes/user/productReview.js'
 
 
 dotenv.config();
@@ -35,6 +36,7 @@ app.use('/api/user', userRoutes);
 
 app.use('/api/admin/category', categoryRoutes);
 app.use('/api/admin/product', productVariationRoutes);
+app.use('/api/user/review',reviewRoutes);
 
 
 

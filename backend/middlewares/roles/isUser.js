@@ -3,7 +3,7 @@
 
 import jwt from 'jsonwebtoken';
 
-export const isAdmin = (req, res, next) => {
+export const isUser = (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
