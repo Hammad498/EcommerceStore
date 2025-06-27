@@ -55,12 +55,16 @@ const reviewSchema = new mongoose.Schema({
 reviewSchema.index({ product: 1, user: 1 }, { unique: true });
 
 
-const Review = mongoose.model('Review', reviewSchema);
-export default Review;
 
-reviewSchema.post('save', async function() {
-  await updateProductRating(this.product);
+
+reviewSchema.post('save', async function () {
+  try {
+    await updateProductRating(this.product);
+  } catch (err) {
+    console.error("Error updating product rating:", err);
+  }
 });
+
 
 reviewSchema.post('remove', async function() {
   await updateProductRating(this.product);
@@ -88,3 +92,8 @@ async function updateProductRating(productId) {
   
   await Product.findByIdAndUpdate(productId, { ratings: rating });
 }
+
+
+const Review = mongoose.model('Review', reviewSchema);
+export default Review;
+

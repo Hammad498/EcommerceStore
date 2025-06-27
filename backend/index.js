@@ -11,6 +11,8 @@ import categoryRoutes from './routes/admin/product/prod_cat_var.js';
 import productVariationRoutes from './routes/admin/product/productRoute.js'
 import reviewRoutes from './routes/user/productReview.js'
 
+import cartRoutes from './routes/user/cart.Route.js';
+
 
 dotenv.config();
 
@@ -38,6 +40,7 @@ app.use('/api/admin/category', categoryRoutes);
 app.use('/api/admin/product', productVariationRoutes);
 app.use('/api/user/review',reviewRoutes);
 
+app.use('/api/user/cart', cartRoutes);
 
 
 app.listen(PORT, () => {
