@@ -12,6 +12,7 @@ import productVariationRoutes from './routes/admin/product/productRoute.js'
 import reviewRoutes from './routes/user/productReview.js'
 
 import cartRoutes from './routes/user/cart.Route.js';
+import orderRoutes from './routes/user/order.Route.js';
 
 
 dotenv.config();
@@ -41,6 +42,7 @@ app.use('/api/admin/product', productVariationRoutes);
 app.use('/api/user/review',reviewRoutes);
 
 app.use('/api/user/cart', cartRoutes);
+app.use('/api/user/order', orderRoutes);
 
 
 app.listen(PORT, () => {
