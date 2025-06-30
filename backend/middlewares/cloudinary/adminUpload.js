@@ -1,29 +1,67 @@
 
+// import cloudinary from "../../config/cloudinary.js";
+// import fs from 'fs/promises';
+
+// export const uploadImages = async (req, res, next) => {
+//   try {
+//     if (!req.files || !req.files.images) {
+//       return res.status(400).json({ message: "No images uploaded" });
+//     }
+//     console.log("req.files:", req.files);
+
+
+//     const files = Array.isArray(req.files.images)
+//       ? req.files.images
+//       : [req.files.images];
+
+//     const uploadedImages = [];
+
+//     for (const file of files) {
+//       const result = await cloudinary.uploader.upload(file.tempFilePath, {
+//         folder: "adminUploads",
+//       });
+//       uploadedImages.push({
+//         public_id: result.public_id,
+//         url: result.secure_url,
+//       });
+//       await fs.unlink(file.tempFilePath);
+//     }
+
+//     req.uploadedImages = uploadedImages;
+//     next();
+//   } catch (error) {
+//     console.error("Cloudinary Upload Error:", error);
+//      return res.status(500).json({ message: "Image upload failed", error: error.message || error });
+
+//   }
+// };
+/////////////////////////////////
+
+
 import cloudinary from "../../config/cloudinary.js";
-import fs from 'fs/promises';
+import fs from "fs/promises";
 
 export const uploadImages = async (req, res, next) => {
   try {
     if (!req.files || !req.files.images) {
       return res.status(400).json({ message: "No images uploaded" });
     }
-    console.log("req.files:", req.files);
 
-
-    const files = Array.isArray(req.files.images)
-      ? req.files.images
-      : [req.files.images];
-
+    const files = Array.isArray(req.files.images) ? req.files.images : [req.files.images];
     const uploadedImages = [];
 
-    for (const file of files) {
+    for (const [index, file] of files.entries()) {
       const result = await cloudinary.uploader.upload(file.tempFilePath, {
         folder: "adminUploads",
       });
+
       uploadedImages.push({
-        public_id: result.public_id,
         url: result.secure_url,
+        public_id: result.public_id,
+        isPrimary: index === 0, 
+        alt: index === 0 ? "Featured image" : "Gallery image",
       });
+
       await fs.unlink(file.tempFilePath);
     }
 
@@ -31,7 +69,17 @@ export const uploadImages = async (req, res, next) => {
     next();
   } catch (error) {
     console.error("Cloudinary Upload Error:", error);
-     return res.status(500).json({ message: "Image upload failed", error: error.message || error });
-
+    return res.status(500).json({
+      message: "Image upload failed",
+      error: error.message || error,
+    });
   }
 };
+
+
+
+
+
+
+// const featuredImage = product.images.find(img => img.isPrimary);
+// const galleryImages = product.images.filter(img => !img.isPrimary);

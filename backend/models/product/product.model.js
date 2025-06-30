@@ -34,6 +34,8 @@ const productSchema = new mongoose.Schema({
     enum: ["Hot", "Trending", "Best Seller", "New Arrival", "Limited Stock"],
     default: []
   },
+  
+  
   images: [imageSchema],
   variations: [variationSchema],
   ratings: {
