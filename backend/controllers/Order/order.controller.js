@@ -3,6 +3,11 @@ import { createStripeCheckoutSession,verifyStripeWebHook,retrieveStripeSession,r
 import Order from '../../models/product/order.model.js';
 import Cart from '../../models/cart.model.js';
 import { getCartIdentifier } from "../../services/cartIdentifier.js";
+import dotenv from 'dotenv';
+import stripe from '../../services/stripe/stripe.js'
+
+dotenv.config();
+
 
 
 export const createCheckoutSession = async (req, res) => {
@@ -22,7 +27,7 @@ export const createCheckoutSession = async (req, res) => {
         }
 
         const cartItems = cart.items.map(item => {
-  const product = item.product;
+         const product = item.product;
 
   if (!product || !product._id) {
     throw new Error("Product not properly populated in cart item");
@@ -85,32 +90,56 @@ export const createOrder = async (req, res) => {
 
     const cart = await Cart.findOne(
       identifier.type === 'user' ? { user: identifier.id } : { sessionId: identifier.id }
-    ).populate('items.product items.variation');
+    ).populate({ path: 'items.product', select: 'title description images variations'});
+
 
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({ message: "Cart is empty" });
     }
-
     const items = cart.items.map(item => {
-      const product = item.product;
+    const product = item.product;
 
-      if (!product?.price && !product?.discountPrice) {
-        throw new Error(`Product price missing for product ID: ${product?._id}`);
-      }
+     if (!product || !product._id) {
+      throw new Error("Product not properly populated in cart item");
+     }
 
-      const unitPrice = product.discountPrice > 0 ? product.discountPrice : product.price;
+  // Match the selected variation
+  const selectedVariation = product.variations.find(
+    v => v.attributes.material.toLowerCase() === item.variation.toLowerCase()
+  );
 
-      return {
-        product: product._id.toString(),
-        productTitle: product.title || 'Untitled Product',
-        variation: item.variation ? item.variation._id?.toString?.() || item.variation.toString() : null,
-        attributes: {},
-        quantity: item.quantity,
-        price: unitPrice,
-        discountPrice: product.discountPrice || 0,
-        total: unitPrice * item.quantity
-      };
-    });
+  if (!selectedVariation) {
+    throw new Error(`Variation '${item.variation}' not found for product '${product.title}'`);
+  }
+
+  const price = selectedVariation.discountPrice > 0
+    ? selectedVariation.discountPrice
+    : selectedVariation.price;
+
+
+    const total = price * item.quantity;
+
+ return {
+    product: {
+      _id: product._id.toString(),
+      title: product.title,
+      description: product.description || '',
+      image: product.images?.[0]?.url || ''
+    },
+    variation: {
+      material: selectedVariation.attributes.material,
+      color: selectedVariation.attributes.color,
+      price,
+      discountPrice: selectedVariation.discountPrice || 0,
+      sku: selectedVariation.variantSKU,
+      images: selectedVariation.images || []
+    },
+    quantity: item.quantity,
+    total
+  };
+});
+
+    
 
     const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
 
@@ -152,40 +181,61 @@ function capitalize(str) {
 ///////////////////////////////////////////////////////////////////////
 
 
-export const getOrderById=async(req,res)=>{
-    try {
-        const order=await Order.findById(req.params.id).populate('items.product items.variation user').lean();
-        if(!order){
-            return res.status(404).json({message:"Order not found"});
-        }
-        if(order.user && order.user._id.toString() !== req.user._id.toString() && !req.user.isAdmin){
-            return res.status(403).json({message:"Access denied"});
-        }
-        if(order.sessionId && order.sessionId !== req.session.id && !req.user.isAdmin){
-            return res.status(403).json({message:"Access denied"});
-        }
 
-        res.status(200).json(order);
-    } catch (error) {
-        console.error("Error fetching order:", error);
-        res.status(500).json({message:"Internal server error"});
+
+export const getOrderById = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).populate('user').lean();
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
     }
-}
+
+    if (
+      order.user &&
+      order.user._id.toString() !== req.user._id.toString() &&
+      !req.user.isAdmin
+    ) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    if (
+      order.sessionId &&
+      order.sessionId !== req.session.id &&
+      !req.user.isAdmin
+    ) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    
+    res.status(200).json(order);
+  } catch (error) {
+    console.error("Error fetching order:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 
 ////////////////////////////////////////////////////////////
-export const getOrdersByUser=async(req,res)=>{
-    try {
-        const order=await Order.find({user:req.user._id}).populate('items.product items.variation').lean();
-        if(!order || order.length === 0){
-            return res.status(404).json({message:"No orders found for this user"});
-        }
-        res.status(200).json(order);
-    } catch (error) {
-        console.error("Error fetching orders by user:", error);
-        res.status(500).json({message:"Internal server error"});
+
+
+export const getOrdersByUser = async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.user._id })
+      .lean();
+
+    if (!orders || orders.length === 0) {
+      return res.status(404).json({ message: "No orders found for this user" });
     }
-}
+
+    res.status(200).json(orders);
+  } catch (error) {
+    console.error("Error fetching orders by user:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 ///////////////////////////////////////////////////////////
 export const updateOrderStatus=async(req,res)=>{
@@ -210,20 +260,6 @@ export const updateOrderStatus=async(req,res)=>{
 
 ///////////////////////////////////////////////////////////////
 
-// export const handleStripeWebhook=async(req,res)=>{
-//     try {
-//         const event=await verifyStripeWebHook(req,res);
-//         if(event.type === 'checkout.session.completed'){
-//             const session=event.data.object;
-//             console.log("Checkout session completed:", session.id);
-//         }
-//         res.status(200).json({ received: true });
-            
-//     } catch (error) {
-//         console.error("Error handling Stripe webhook:", error);
-//         res.status(400).json({ error: 'Webhook Error' });
-//     }
-// }
 
 
 

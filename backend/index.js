@@ -26,21 +26,21 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ Handle Stripe webhook with raw body parser BEFORE express.json()
+
 app.post('/api/user/order/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
 
-// ✅ Now parse JSON after webhook route
+//  Now parse JSON after webhook route
 app.use(bodyParser.json());
 app.use(express.json());
 
-// ✅ File upload middleware
+//  File upload middleware
 app.use(fileUpload({
   useTempFiles: true,
   tempFileDir: '/temp/',
   createParentPath: true,
 }));
 
-// ✅ Routes
+//  Routes
 app.use('/api', adminRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/admin/category', categoryRoutes);

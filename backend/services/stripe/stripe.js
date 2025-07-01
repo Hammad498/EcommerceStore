@@ -21,7 +21,7 @@ export const createStripeCheckoutSession = async ({ user, cartItems, successUrl,
             description: item.product.description || '',
         };
 
-        // ✅ Add images ONLY if it's a non-empty string
+        
         if (item.product.image && typeof item.product.image === 'string' && item.product.image.trim() !== '') {
             productData.images = [item.product.image];
         }
@@ -88,4 +88,7 @@ export const retrieveStripeSession = async (sessionId) => {
 export const retrievePaymentIntent=async(paymentIntentId)=>{
     return await stripe.paymentIntents.retrieve(paymentIntentId);
 }
+
+
+export default stripe;
 
