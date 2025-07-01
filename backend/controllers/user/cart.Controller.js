@@ -1,8 +1,129 @@
 import Cart from "../../models/cart.model.js";
 import { getCartIdentifier } from "../../services/cartIdentifier.js";
 import validateProductAndVariation from "../../validation/productCart.validation.js";
+import Product from "../../models/product/product.model.js";
 
 
+
+
+// export const addToCart = async (req, res) => {
+//   try {
+//     const { product, variation, quantity } = req.body;
+
+//     if (!product || !quantity) {
+//       return res.status(400).json({ message: "Product and quantity are required" });
+//     }
+
+//     const { valid, message } = await validateProductAndVariation(product, variation);
+//     if (!valid) return res.status(400).json({ message });
+
+//     const identifier = getCartIdentifier(req);
+//     if (!identifier) {
+//       return res.status(400).json({ message: "User or session ID required" });
+//     }
+
+//     const query = identifier.type === "user"
+//       ? { user: identifier.id, isOrdered: false }
+//       : { sessionId: identifier.id, isOrdered: false };
+
+//     let existingCart = await Cart.findOne(query);
+
+//     if (existingCart) {
+//       const existingItem = existingCart.items.find(
+//         item => item.product.toString() === product && item.variation === variation
+//       );
+
+//       if (existingItem) {
+//         existingItem.quantity += parseInt(quantity);
+//       } else {
+//         existingCart.items.push({ product, variation, quantity });
+//       }
+
+//       existingCart.updatedAt = new Date();
+//       await existingCart.save();
+
+//       return res.status(200).json({
+//         message: "Cart updated",
+//         cart: existingCart
+//       });
+//     }
+
+    
+//     const newCart = new Cart({
+//       user: identifier.type === "user" ? identifier.id : undefined,
+//       sessionId: identifier.type === "guest" ? identifier.id : undefined,
+//       items: [{ product, variation, quantity }],
+//       updatedAt: new Date()
+//     });
+
+//     await newCart.save();
+
+//     return res.status(201).json({
+//       message: "Cart created and item added",
+//       cart: newCart
+//     });
+
+//   } catch (error) {
+//     console.error("Error adding to cart:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to add item to cart",
+//       error: error.message
+//     });
+//   }
+// };
+
+///////
+
+
+/////////////////
+
+
+/////////////////////////////////
+
+//get current user or guest cart
+
+
+
+
+
+const enrichCartItemsWithPrice = async (cart) => {
+  const populated = await Cart.populate(cart, {
+    path: "items.product",
+    select: "title variations images"
+  });
+
+  const items = populated.items.map(item => {
+    const variation = item.product.variations.find(
+      v => v.attributes.material.toLowerCase() === item.variation.toLowerCase()
+    );
+
+    const price = variation.discountPrice > 0 ? variation.discountPrice : variation.price;
+
+    return {
+  productId: item.product._id,
+  title: item.product.title,
+  variation: item.variation,
+  attributes: variation.attributes,
+  image: variation.images?.[0]?.url || null,
+  quantity: item.quantity,
+  unitPrice: variation.price,
+  discountPrice: variation.discountPrice > 0 ? variation.discountPrice : null,
+  finalPricePerUnit: variation.discountPrice > 0 ? variation.discountPrice : variation.price,
+  totalPrice: (variation.discountPrice > 0 ? variation.discountPrice : variation.price) * item.quantity
+};
+  });
+
+  return {
+    _id: populated._id,
+    user: populated.user,
+    sessionId: populated.sessionId,
+    items,
+    isOrdered: populated.isOrdered,
+    updatedAt: populated.updatedAt,
+    createdAt: populated.createdAt
+  };
+};
 
 
 export const addToCart = async (req, res) => {
@@ -25,41 +146,37 @@ export const addToCart = async (req, res) => {
       ? { user: identifier.id, isOrdered: false }
       : { sessionId: identifier.id, isOrdered: false };
 
-    let existingCart = await Cart.findOne(query);
+    let cart = await Cart.findOne(query);
 
-    if (existingCart) {
-      const existingItem = existingCart.items.find(
+    if (cart) {
+      const existingItem = cart.items.find(
         item => item.product.toString() === product && item.variation === variation
       );
 
       if (existingItem) {
         existingItem.quantity += parseInt(quantity);
       } else {
-        existingCart.items.push({ product, variation, quantity });
+        cart.items.push({ product, variation, quantity });
       }
 
-      existingCart.updatedAt = new Date();
-      await existingCart.save();
-
-      return res.status(200).json({
-        message: "Cart updated",
-        cart: existingCart
+      cart.updatedAt = new Date();
+      await cart.save();
+    } else {
+      cart = new Cart({
+        user: identifier.type === "user" ? identifier.id : undefined,
+        sessionId: identifier.type === "guest" ? identifier.id : undefined,
+        items: [{ product, variation, quantity }],
+        updatedAt: new Date()
       });
+
+      await cart.save();
     }
 
-    
-    const newCart = new Cart({
-      user: identifier.type === "user" ? identifier.id : undefined,
-      sessionId: identifier.type === "guest" ? identifier.id : undefined,
-      items: [{ product, variation, quantity }],
-      updatedAt: new Date()
-    });
+    const enrichedCart = await enrichCartItemsWithPrice(cart);
 
-    await newCart.save();
-
-    return res.status(201).json({
-      message: "Cart created and item added",
-      cart: newCart
+    return res.status(cart.wasNew ? 201 : 200).json({
+      message: cart.wasNew ? "Cart created and item added" : "Cart updated",
+      cart: enrichedCart
     });
 
   } catch (error) {
@@ -72,15 +189,7 @@ export const addToCart = async (req, res) => {
   }
 };
 
-///////
-
-
-/////////////////
-
-
 /////////////////////////////////
-
-//get current user or guest cart
 
 export const getCart=async(req,res)=>{
     try {

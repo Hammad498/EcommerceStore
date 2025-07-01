@@ -22,23 +22,39 @@ export const createCheckoutSession = async (req, res) => {
         }
 
         const cartItems = cart.items.map(item => {
-            if (!item.product || !item.product._id) {
-                throw new Error("Product not properly populated in cart item");
-            }
+  const product = item.product;
 
-            return {
-                product: {
-                    _id: item.product._id.toString(),
-                    name: item.product.title,
-                    description: item.product.description || '',
-                    image: item.product.image || '',
-                },
-                variation: item.variation || null,
-                quantity: item.quantity,
-                price: item.discountPrice > 0 ? item.discountPrice : item.price,
-                discountPrice: item.product.discountPrice > 0 ? item.product.discountPrice : item.product.price,
-            };
-        });
+  if (!product || !product._id) {
+    throw new Error("Product not properly populated in cart item");
+  }
+
+  // Match the selected variation
+  const selectedVariation = product.variations.find(
+    v => v.attributes.material.toLowerCase() === item.variation.toLowerCase()
+  );
+
+  if (!selectedVariation) {
+    throw new Error(`Variation '${item.variation}' not found for product '${product.title}'`);
+  }
+
+  const price = selectedVariation.discountPrice > 0
+    ? selectedVariation.discountPrice
+    : selectedVariation.price;
+
+  return {
+    product: {
+      _id: product._id.toString(),
+      name: product.title,
+      description: product.description || '',
+      image: product.images?.[0]?.url || ''
+    },
+    variation: item.variation || null,
+    quantity: item.quantity,
+    price,
+    discountPrice: selectedVariation.discountPrice || 0
+  };
+});
+
 
         const session = await createStripeCheckoutSession({
             user: identifier.type === 'user' ? { _id: identifier.id, email: req.user?.email || '' } : null,
@@ -47,7 +63,9 @@ export const createCheckoutSession = async (req, res) => {
             cancelUrl: `${process.env.CLIENT_URL}/cart`,
         });
 
-        res.status(200).json({ sessionId: session.id });
+        res.status(200).json({ sessionId: session.id ,
+            url:session.url
+        });
 
     } catch (error) {
         console.error("Error creating checkout session:", error.message);
@@ -58,54 +76,75 @@ export const createCheckoutSession = async (req, res) => {
 
 ////////////////////////////////////////////////////////////////////////
 
-export const createOrder=async(req,res)=>{
-    try {
-        const identifier=getCartIdentifier(req);
-        if(!identifier){
-            return res.status(400).json({message:"Not found!"});
-        }
-        const cart=await Cart.findOne(identifier.type === 'user' ? { user: identifier.id } : { sessionId: identifier.id }).populate('items.product items.variation');
-        if(!cart || cart.items.length === 0){
-            return res.status(400).json({message:"Cart is empty"});
-        }
-        const items=cart.items.map(item=>{
-            const product=item.product;
-            const unitPrice=product.discountPrice > 0 ? product.discountPrice : product.price;
-            return {
-                product:product._id.toString(),
-                productTitle: product.title,
-                variation: item.variation ? item.variation._id.toString() : null,
-                attributes:{},
-                quantity: item.quantity,
-                price: unitPrice,
-                discountPrice: product.discountPrice > 0 ? product.discountPrice : product.price,
-                total: item.quantity * unitPrice
-            }
-        })
-        const totalAmount=items.reduce((sum,item)=>sum+item.total,0);
-
-        const order=new Order({
-            user:identifier.type === 'user' ? identifier.id : null,
-            sessionId: identifier.type === 'guest' ? identifier.id : null,
-            items,
-            shippingAddress: req.body.shippingAddress || {},
-            billingAddress: req.body.billingAddress || {},
-            totalAmount,
-            isGuestOrder:identifier.type === 'guest',
-            payment:{
-                method: req.body.paymentMethod || 'stripe',
-                status: 'pending', 
-            },
-            notes: req.body.notes || '',
-        })
-        await order.save();
-        await Cart.deleteOne({_id: cart._id});
-        res.status(201).json({message:"Order created successfully", orderId: order._id.toString()});
-    } catch (error) {
-        console.error("Error creating order:", error);
-        res.status(500).json({message:"Internal server error"});
+export const createOrder = async (req, res) => {
+  try {
+    const identifier = getCartIdentifier(req);
+    if (!identifier) {
+      return res.status(400).json({ message: "User/session identifier not found" });
     }
+
+    const cart = await Cart.findOne(
+      identifier.type === 'user' ? { user: identifier.id } : { sessionId: identifier.id }
+    ).populate('items.product items.variation');
+
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ message: "Cart is empty" });
+    }
+
+    const items = cart.items.map(item => {
+      const product = item.product;
+
+      if (!product?.price && !product?.discountPrice) {
+        throw new Error(`Product price missing for product ID: ${product?._id}`);
+      }
+
+      const unitPrice = product.discountPrice > 0 ? product.discountPrice : product.price;
+
+      return {
+        product: product._id.toString(),
+        productTitle: product.title || 'Untitled Product',
+        variation: item.variation ? item.variation._id?.toString?.() || item.variation.toString() : null,
+        attributes: {},
+        quantity: item.quantity,
+        price: unitPrice,
+        discountPrice: product.discountPrice || 0,
+        total: unitPrice * item.quantity
+      };
+    });
+
+    const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
+
+    const order = new Order({
+      user: identifier.type === 'user' ? identifier.id : null,
+      sessionId: identifier.type === 'guest' ? identifier.id : null,
+      items,
+      shippingAddress: req.body.shippingAddress || {},
+      billingAddress: req.body.billingAddress || {},
+      totalAmount,
+      isGuestOrder: identifier.type === 'guest',
+      payment: {
+        method: capitalize(req.body.paymentMethod || 'Stripe'),
+        status: 'Pending',
+      },
+      notes: req.body.notes || '',
+    });
+
+    await order.save();
+    await Cart.deleteOne({ _id: cart._id });
+
+    res.status(201).json({ message: "Order created successfully", orderId: order._id.toString() });
+  } catch (error) {
+    console.error("Error creating order:", error);
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+};
+
+// Utility function to ensure enum casing is correct
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
+
+
 
 
 
@@ -171,20 +210,45 @@ export const updateOrderStatus=async(req,res)=>{
 
 ///////////////////////////////////////////////////////////////
 
-export const handleStripeWebhook=async(req,res)=>{
-    try {
-        const event=await verifyStripeWebHook(req,res);
-        if(event.type === 'checkout.session.completed'){
-            const session=event.data.object;
-            console.log("Checkout session completed:", session.id);
-        }
-        res.status(200).json({ received: true });
+// export const handleStripeWebhook=async(req,res)=>{
+//     try {
+//         const event=await verifyStripeWebHook(req,res);
+//         if(event.type === 'checkout.session.completed'){
+//             const session=event.data.object;
+//             console.log("Checkout session completed:", session.id);
+//         }
+//         res.status(200).json({ received: true });
             
-    } catch (error) {
-        console.error("Error handling Stripe webhook:", error);
-        res.status(400).json({ error: 'Webhook Error' });
-    }
-}
+//     } catch (error) {
+//         console.error("Error handling Stripe webhook:", error);
+//         res.status(400).json({ error: 'Webhook Error' });
+//     }
+// }
+
+
+
+export const handleStripeWebhook = (req, res) => {
+  const sig = req.headers['stripe-signature'];
+
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error("Error handling Stripe webhook:", err);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Handle specific event types
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    // Fulfill order
+    console.log(' Payment success. Session ID:', session.id);
+    // Your logic to create order, send email, etc.
+  }
+
+  res.status(200).json({ received: true });
+};
 
 /////////////////////////////////////////////////////////////////
 

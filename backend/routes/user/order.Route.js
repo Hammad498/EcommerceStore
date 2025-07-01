@@ -1,51 +1,45 @@
+// routes/user/order.Route.js
 import Router from 'express';
-import {createCheckoutSession,
-    createOrder,
-    getOrderById,
-    getOrdersByUser,
-    updateOrderStatus,
-    handleStripeWebhook,
-    getAllOrders,
-    getOrdersByStatus,
-    deleteOrder} from '../../controllers/Order/order.controller.js';
+import {
+  createCheckoutSession,
+  createOrder,
+  getOrderById,
+  getOrdersByUser,
+  updateOrderStatus,
+  getAllOrders,
+  getOrdersByStatus,
+  deleteOrder
+} from '../../controllers/Order/order.controller.js';
 
-
-import {isAdmin} from '../../middlewares/roles/isAdmin.js';
+import { isAdmin } from '../../middlewares/roles/isAdmin.js';
 import { isUser } from '../../middlewares/roles/isUser.js';
 
+const router = Router();
 
-const router=Router();
-
-
-// Create a new checkout session
+// ✅ Checkout session
 router.post('/checkout-session', isUser, createCheckoutSession);
 
-// Create a new order
+// ✅ Create order
 router.post('/', isUser, createOrder);
 
-
-// Update order status (admin only)
+// ✅ Update order status (admin only)
 router.put('/:id/status', isAdmin, updateOrderStatus);
-// Handle Stripe webhook
-router.post('/webhook', handleStripeWebhook);
-// Get all orders (admin only)
+
+// ❌ Webhook REMOVED from here — defined globally in server.js
+
+// ✅ Get all orders (admin)
 router.get('/', isAdmin, getAllOrders);
 
-// Delete an order (admin only)
+// ✅ Delete order (admin)
 router.delete('/:id', isAdmin, deleteOrder);
 
-// Get orders by user
+// ✅ Get user orders
 router.get('/user', isUser, getOrdersByUser);
-// Get orders by status (admin only)
+
+// ✅ Get orders by status (admin)
 router.get('/status/:status', isAdmin, getOrdersByStatus);
-// Get order by ID (user or admin)
-router.get('/:id', isUser, getOrderById); 
 
-
-
-
-
-
-
+// ✅ Get specific order (user or admin)
+router.get('/:id', isUser, getOrderById);
 
 export default router;
