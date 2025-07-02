@@ -47,7 +47,7 @@ export const createStripeCheckoutSession = async ({ user, cartItems, successUrl,
             userId: user ? user._id.toString() : 'guest',
             cartItems: JSON.stringify(cartItems.map(item => ({
                 productId: item.product._id,
-                variation: item.variation || '',
+                variation: item.variantSKU || '',
                 quantity: item.quantity,
             }))),
         },

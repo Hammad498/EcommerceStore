@@ -6,12 +6,12 @@ const router=Router();
 
 
 router.post('/',isUser,addToCart);
-router.get('/',getCart);
+router.get('/',isUser,getCart);
 
-router.put('/:id',updateCartItem);
-router.delete('/:id',removeFromCart);
+router.put('/:id',isUser,updateCartItem);
+router.delete('/:id',isUser,removeFromCart);
 
-router.delete('/',cleanCart);
+router.delete('/',isUser,cleanCart);
 
 
 

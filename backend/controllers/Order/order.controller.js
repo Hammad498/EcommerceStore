@@ -5,6 +5,8 @@ import Cart from '../../models/cart.model.js';
 import { getCartIdentifier } from "../../services/cartIdentifier.js";
 import dotenv from 'dotenv';
 import stripe from '../../services/stripe/stripe.js'
+import mongoose from 'mongoose';
+
 
 dotenv.config();
 
@@ -35,7 +37,7 @@ export const createCheckoutSession = async (req, res) => {
 
   // Match the selected variation
   const selectedVariation = product.variations.find(
-    v => v.attributes.material.toLowerCase() === item.variation.toLowerCase()
+    v => v.variantSKU.toLowerCase() === item.variation.toLowerCase()
   );
 
   if (!selectedVariation) {
@@ -53,7 +55,7 @@ export const createCheckoutSession = async (req, res) => {
       description: product.description || '',
       image: product.images?.[0]?.url || ''
     },
-    variation: item.variation || null,
+    variation: item.variantSKU || null,
     quantity: item.quantity,
     price,
     discountPrice: selectedVariation.discountPrice || 0
@@ -105,7 +107,7 @@ export const createOrder = async (req, res) => {
 
   // Match the selected variation
   const selectedVariation = product.variations.find(
-    v => v.attributes.material.toLowerCase() === item.variation.toLowerCase()
+    v => v.variantSKU.toLowerCase() === item.variation.toLowerCase()
   );
 
   if (!selectedVariation) {
@@ -161,14 +163,14 @@ export const createOrder = async (req, res) => {
     await order.save();
     await Cart.deleteOne({ _id: cart._id });
 
-    res.status(201).json({ message: "Order created successfully", orderId: order._id.toString() });
+    res.status(201).json({ message: "Order created successfully", orderId: order._id.toString() ,data:order});
   } catch (error) {
     console.error("Error creating order:", error);
     res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };
 
-// Utility function to ensure enum casing is correct
+
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
@@ -186,6 +188,10 @@ function capitalize(str) {
 export const getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id).populate('user').lean();
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid order ID format" });
+    }
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
@@ -240,17 +246,17 @@ export const getOrdersByUser = async (req, res) => {
 ///////////////////////////////////////////////////////////
 export const updateOrderStatus=async(req,res)=>{
     try {
+      
+
         const {status} = req.body;
         if(!status){
             return res.status(400).json({message:"Status is required"});
         }
-        const order=await Order.findByIdAndUpdate(req.params.id, {deliveryStatus:status}, {new: true}).populate('items.product items.variation user').lean();
+        const order=await Order.findByIdAndUpdate(req.params.id, {deliveryStatus:status}, {new: true}).lean();
         if(!order){
             return res.status(404).json({message:"Order not found"});
         }
-        if(!req.user.isAdmin){
-            return res.status(403).json({message:"Access denied"});
-        }
+        
         res.status(200).json({message:"Order status updated successfully", order});
     } catch (error) {
         console.error("Error updating order status:", error);
@@ -290,7 +296,7 @@ export const handleStripeWebhook = (req, res) => {
 
 export const getAllOrders=async(req,res)=>{
     try {
-        const orders=await Order.find().populate('items.product items.variation user').sort({createdAt: -1}).lean();
+        const orders=await Order.find().sort({createdAt: -1}).lean();
         if(!orders || orders.length === 0){
             return res.status(404).json({message:"No orders found"});
         }
@@ -308,40 +314,47 @@ export const getAllOrders=async(req,res)=>{
 
 
 
-export const getOrdersByStatus=async(req,res)=>{
-    try {
-        const orders=await Order.find({deliveryStatus:req.params.status}).populate('items.product items.variation user').sort({createdAt: -1}).lean();
-        if(!orders || orders.length === 0){
-            return res.status(404).json({message:"No orders found with this status"});
-        }
-        if(!req.user.isAdmin){
-            return res.status(403).json({message:"Access denied"});
-        }
-        res.status(200).json(orders);
-    } catch (error) {
-        console.error("Error fetching orders by status:", error);
-        res.status(500).json({message:"Internal server error"});
+export const getOrdersByStatus = async (req, res) => {
+  try {
+    const orders = await Order.find({ deliveryStatus: req.params.status })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!orders || orders.length === 0) {
+      return res.status(404).json({ message: "No orders found with this status" });
     }
-}
+
+    res.status(200).json(orders);
+  } catch (error) {
+    console.error("Error fetching orders by status:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 //////////////////////////////////////////////////////////////////////
 
 
-export const deleteOrder=async(req,res)=>{
+export const deleteOrder = async (req, res) => {
     try {
-        const order=await Order.findByIdAndDelete(req.params.id);
-        if(!order){
-            return res.status(404).json({message:"Order not found"});
+       
+
+        const order = await Order.findByIdAndDelete(req.params.id);
+
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
         }
-        if(!req.user.isAdmin){
-            return res.status(403).json({message:"Access denied"});
-        }
-        res.status(200).json({message:"Order deleted successfully"});
+
+        
+
+        res.status(200).json({ message: "Order deleted successfully" });
     } catch (error) {
         console.error("Error deleting order:", error);
-        res.status(500).json({message:"Internal server error"});
+        res.status(500).json({ message: "Internal server error" });
     }
-}
+};
+
+
 
 
 
