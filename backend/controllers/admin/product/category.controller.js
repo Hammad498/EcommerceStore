@@ -18,7 +18,7 @@ export const getAllCategories = async (req, res) => {
 
 export const createCategory = async (req, res) => {
   try {
-    // console.log("REQ.BODY:", req.body);
+    console.log("REQ.BODY:", req.body);
     // console.log("REQ.UPLOADED IMAGES:", req.uploadedImages);
 
     const { name, slug, description, attributes } = req.body;
