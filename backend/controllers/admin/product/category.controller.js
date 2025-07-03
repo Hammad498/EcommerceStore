@@ -1,5 +1,6 @@
 import Category from "../../../models/product/category.model.js";
 import slugify from "slugify";
+import cloudinary from "../../../config/cloudinary.js";
 
 
 export const getAllCategories = async (req, res) => {
@@ -53,7 +54,10 @@ export const createCategory = async (req, res) => {
       }
     }
 
-    const images = (req.uploadedImages || []).map((img) => img.url);
+    const images = (req.uploadedImages || []).map((img) => ({
+      url: img.url,
+      public_id: img.public_id
+    }));
 
     const category = new Category({
       name,
@@ -80,6 +84,7 @@ export const createCategory = async (req, res) => {
 
 /////////////////////////////////////////////////
 
+
 export const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
@@ -92,7 +97,16 @@ export const updateCategory = async (req, res) => {
       });
     }
 
-    // Parse attributes
+    
+    const existingCategory = await Category.findById(id);
+    if (!existingCategory) {
+      return res.status(404).json({
+        success: false,
+        message: "Category not found",
+      });
+    }
+
+    
     let parsedAttributes = [];
     try {
       parsedAttributes = typeof attributes === 'string' ? JSON.parse(attributes) : attributes;
@@ -101,12 +115,33 @@ export const updateCategory = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid attributes format" });
     }
 
+    
+    let newImages = existingCategory.images || [];
+
+    if (req.uploadedImages && req.uploadedImages.length > 0) {
+      
+      if (existingCategory.images && existingCategory.images.length > 0) {
+        for (const img of existingCategory.images) {
+          if (img.public_id) {
+            
+            await cloudinary.uploader.destroy(img.public_id);
+          }
+        }
+      }
+
+      
+      newImages = req.uploadedImages.map((img) => ({
+        url: img.url,
+        public_id: img.public_id,
+      }));
+    }
+
     const updatedData = {
       name,
       slug: slug || slugify(name, { lower: true, strict: true }),
       description,
       attributes: parsedAttributes,
-      image: (req.uploadedImages || []).map((img) => img.url),
+      images: newImages,
     };
 
     const updatedCategory = await Category.findByIdAndUpdate(
@@ -115,18 +150,10 @@ export const updateCategory = async (req, res) => {
       { new: true, runValidators: true }
     );
 
-    if (!updatedCategory) {
-      return res.status(404).json({
-        success: false,
-        message: "Category not found",
-      });
-    }
-
     res.status(200).json({
       success: true,
       message: "Category updated successfully",
       data: updatedCategory,
-      
     });
 
   } catch (error) {
@@ -134,7 +161,6 @@ export const updateCategory = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
-
 
 ////////////////////////////////////////
 

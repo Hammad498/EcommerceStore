@@ -24,11 +24,7 @@ connectDB();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// app.use(cors({
-//   origin: "*" || 'http://localhost:5173',
-//   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-//   // credentials: true,
-// }));
+
 
 
 app.use(cors({
@@ -40,10 +36,10 @@ app.use(cors({
 
 app.use(express.urlencoded({ extended: true }));
 
-
+//webhook comes 1st then body-parser
 app.post('/api/user/order/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
 
-//  Now parse JSON after webhook route
+
 app.use(bodyParser.json());
 app.use(express.json());
 
