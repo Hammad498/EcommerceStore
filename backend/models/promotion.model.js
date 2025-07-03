@@ -15,7 +15,7 @@ const promotionSchema = new mongoose.Schema({
 
   type: {
     type: String,
-    enum: ['category', 'product', 'custom'],
+    enum: ['category', 'product','variation', 'custom'],
     required: true,
   },
 
@@ -34,6 +34,11 @@ const promotionSchema = new mongoose.Schema({
       return this.type === 'product';
     }
   },
+  variationSKU: {
+  type : String,
+  required: function() { return this.type === 'variation'; },
+},
+
 
   isActive: { type: Boolean, default: true },
 
@@ -50,6 +55,9 @@ const promotionSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+promotionSchema.index({ variationSKU:1, startDate:1, endDate:1 });
+
 
 const Promotion = mongoose.model('Promotion', promotionSchema);
 export default Promotion;

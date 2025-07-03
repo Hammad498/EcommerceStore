@@ -4,6 +4,8 @@ import Category from "../../../models/product/category.model.js";
 import slugify from "slugify";
 import {skuGenerator} from '../../../services/skuGenerator.js'
 import mongoose from "mongoose";
+import {applyBestDiscount} from '../../../services/promotion.service.js'
+import Promotion from "../../../models/promotion.model.js";
 
 
 
@@ -122,66 +124,113 @@ export const createProduct = async (req, res) => {
 //////////////////////////
 
 
-export const getAllProducts=async(req,res)=>{
+export const getAllProducts = async (req, res) => {
   try {
-    const product=await Product.find({}).populate({
-      path:"category",
-      select:"name"
-    }).populate({
-      path:"createdBy", select:"name"
-    }).sort({createdAt:-1})
-    .select("-__v  -createdBy.email -createdBy.role");
+    const now = new Date();
 
-    if(!product || product.length === 0){
+    // 1. Get active promotions
+    const promos = await Promotion.find({
+      isActive: true,
+      startDate: { $lte: now },
+      endDate: { $gte: now },
+    }).select("type category product variationSKU discount startDate endDate");
+
+    // 2. Fetch products WITHOUT .lean()
+    const products = await Product.find({})
+      .populate({ path: "category", select: "name" })
+      .populate({ path: "createdBy", select: "name" })
+      .sort({ createdAt: -1 })
+      .select("-__v -createdBy.email -createdBy.role");
+
+    if (!products || products.length === 0) {
       return res.status(404).json({
         success: false,
         message: "No products found",
       });
     }
+
+    // 3. Process discounts
+    const withPromo = products.map((prodDoc) => {
+      const prod = prodDoc.toObject(); // Convert to plain JS object
+
+      const matchedPromos = promos.filter((promo) =>
+        (promo.type === "category" && promo.category?.toString() === prod.category?._id?.toString()) ||
+        (promo.type === "product" && promo.product?.toString() === prod._id?.toString()) ||
+        (promo.type === "variation" && prod.variations?.some(v => v.variantSKU === promo.variationSKU))
+      );
+
+      prod.variations = prod.variations.map((variation) =>
+        applyBestDiscount(variation, matchedPromos)
+      );
+
+      const prices = prod.variations.map(v => v.finalPrice ?? v.price ?? 0);
+      prod.priceRange = {
+        min: Math.min(...prices),
+        max: Math.max(...prices),
+      };
+
+      return prod;
+    });
+
+    // 4. Send response
     res.status(200).json({
       success: true,
       message: "Products fetched successfully",
-      data: product,
+      data: withPromo,
     });
+
   } catch (error) {
-    console.log("Error in fetching all the products!");
+    console.error("Error in fetching all the products!", error);
     res.status(500).json({
-      success:false,
-      message:"Failed to fetch:server error",
-      error:error.message
-    })
+      success: false,
+      message: "Failed to fetch: server error",
+      error: error.message,
+    });
   }
-}
+};
+
+
 
 
 ///////////////////////////////////
 
-export const getById=async(req,res)=>{
+export const getById = async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) {
-      return res.status(400).json({
-        success: false,
-        message: "Product ID is required",
-      });
+      return res.status(400).json({ success: false, message: "Product ID is required" });
     }
-    const product=await Product.findById(id).populate({
-      path:"category",
-      select:"name"
-    }).populate({
-      path:"createdBy", select:"name"
-    }).select("-__v -createdBy.email -createdBy.role");
+
+    const product = await Product.findById(id)
+      // .populate({ path: "category", select: "name" })
+      // .populate({ path: "createdBy", select: "name" })
+      .select("-__v -createdBy.email -createdBy.role")
+      .lean();  
+
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
-      });
+      return res.status(404).json({ success: false, message: "Product not found" });
     }
+
+    const now = new Date();
+    const promos = await Promotion.find({
+      isActive: true,
+      startDate: { $lte: now },
+      endDate: { $gte: now },
+      $or: [
+        { type: 'product', product: product._id },
+        { type: 'category', category: product.category?._id || product.category },
+        { type: 'variation', variationSKU: { $in: product.variations.map(v => v.variantSKU) } }
+      ]
+    });
+
+    product.variations = product.variations.map(v => applyBestDiscount(v, promos));
+
     res.status(200).json({
       success: true,
       message: "Product fetched successfully",
       data: product,
-    })
+    });
+
   } catch (error) {
     console.error("Error fetching product by ID:", error);
     res.status(500).json({
@@ -190,116 +239,12 @@ export const getById=async(req,res)=>{
       error: error.message,
     });
   }
-}
+};
+
 
 ////////////////////////
 
 
-// export const editproduct=async(req,res)=>{
-//   try{
-//     const {id}=req.params;
-//     if(!id){
-//       return res.status(400).json({
-//         success: false,
-//         message: "Product ID is required",
-//       })
-//     }
-//     const product=await Product.findById(id);
-//     if(!product){
-//       return res.status(404).json({
-//         success: false,
-//         message: "Product not found",
-//       })
-//     }
-//     const {title,description,brand,category,badges,baseSKU,variations,metaTitle,metaDescription,isFeatured,slug}=req.body;
-//     if(!title || !description ||!slug || !brand || !badges || !category || !baseSKU || !variations || variations.length === 0){
-//       return res.status(400).json({
-//         success: false,
-//         message: "Missing required fields",
-//       })
-//     }
-//     const categoryDoc=await Category.findById(category);
-//     if(!categoryDoc){
-//       return res.status(404).json({
-//         success: false,
-//         message: "Category not found",
-//       })
-//     }
-    
-
-//     const generatedSlug = slug || slugify(title, { lower: true, strict: true });
-//     const images = (req.uploadedImages || []).map((img) => ({
-//       url: img.url,
-//       alt: `Main image for ${title}`,
-//     }));
-//     let parsedVariations;
-//     try {
-//       parsedVariations = typeof variations === "string" ? JSON.parse(variations) : variations;
-//     } catch (e) {
-//       return res.status(400).json({ success: false, message: "Invalid variations format" });
-//     }
-
-//     const requiredAttributes = categoryDoc.attributes.filter(attr => attr.required).map(attr => attr.name.toLowerCase());
-//     for (const [index, variation] of parsedVariations.entries()) {
-//       for (const attrName of requiredAttributes) {
-//         if (!variation.attributes || !variation.attributes[attrName]) {
-//           return res.status(400).json({
-//             success: false,
-//             message: `Variation ${index + 1} is missing required attribute: ${attrName}`,
-//           });
-//         }
-//       }
-//     }
-    
-//     const processedVariations=parsedVariations.map((variation,index)=>{
-//       const variantSKU=`${baseSKU}-${index +1}`;
-//       return {
-//         variantSKU,
-//         attributes: variation.attributes,
-//         price: variation.price ?? 0,
-//         discountPrice: variation.discountPrice ?? 0,
-//         stock: variation.stock ?? 0,
-//         isActive: variation.isActive !== false,
-//         images: (variation.uploadedImages || []).map((img) => ({
-//           url: img.url,
-//           alt: img.alt || `Image for ${variantSKU}`,
-//         })),
-//       }
-//     })
-//     const updatedProduct = await Product.findByIdAndUpdate(
-//   id,
-//   {
-//     title,
-//     description,
-//     brand,
-//     slug: generatedSlug,
-//     category: categoryDoc._id,
-//     badges,
-//     baseSKU,
-//     variations: processedVariations,
-//     metaTitle,
-//     metaDescription,
-//     isFeatured: !!isFeatured,
-//     images,
-//     updatedBy: req.user?._id, 
-//   },
-//   { new: true }
-// );
-
-//     res.status(200).json({
-//       success:true,
-//       message:"Successfully updated!",
-//       data:updatedProduct
-//     })
-//   }catch(error){
-//     console.log("Error in editing product:", error);
-//     res.status(500).json({
-//       success:false,
-//       message:"Failed to edit product: server error",
-//       error:error.message
-//     })
-//   }
-// }
 
 
 
@@ -436,3 +381,81 @@ export const deleteProduct = async (req, res) => {
     });
   }
 };
+
+
+/////////////////////////////////
+
+
+
+export const getByVariantSku = async (req, res) => {
+  try {
+    const { variantSKU } = req.query;
+    if (!variantSKU) {
+      return res.status(400).json({
+        success: false,
+        message: "Variant SKU is required",
+      });
+    }
+
+    
+    const product = await Product.findOne({ "variations.variantSKU": variantSKU })
+      // .populate({ path: "category", select: "name" })
+      // .populate({ path: "createdBy", select: "name" })
+      .select("-__v -createdBy.email -createdBy.role")
+      .lean();
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product with the specified variant SKU not found",
+      });
+    }
+
+    
+    const matchedVariation = product.variations.find(
+      (v) => v.variantSKU === variantSKU
+    );
+
+    if (!matchedVariation) {
+      return res.status(404).json({
+        success: false,
+        message: "Variant with the specified SKU not found in product",
+      });
+    }
+
+    const now = new Date();
+   const promos = await Promotion.find({
+  isActive: true,
+  startDate: { $lte: now },
+  endDate: { $gte: now },
+  $or: [
+    { type: 'product', product: product._id },
+    { type: 'category', category: product.category?._id || product.category },
+    { type: 'variation', variationSKU: variantSKU } 
+  ]
+});
+
+
+    
+    const discountedVariation = applyBestDiscount(matchedVariation, promos);
+
+   
+    product.variations = [discountedVariation];
+
+    return res.status(200).json({
+      success: true,
+      message: "Product fetched successfully",
+      data: product,
+    });
+  } catch (error) {
+    console.error("Error fetching product by variant SKU:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch product by variant SKU",
+      error: error.message,
+    });
+  }
+};
+
+
+

@@ -3,7 +3,7 @@ import Router from 'express';
 
 import {uploadImages} from '../../../middlewares/cloudinary/adminUpload.js';
 // import { isAdmin } from '../../../middlewares/roles/isAdmin.js';
-import { createProduct,getAllProducts,getById,editproduct,deleteProduct } from '../../../controllers/admin/product/product.controller.js';
+import { createProduct,getAllProducts,getById,editproduct,deleteProduct,getByVariantSku } from '../../../controllers/admin/product/product.controller.js';
 // import { productValidation } from '../../../validation/product.Validation.js';
 
 
@@ -27,6 +27,8 @@ router.get('/get/:id',getById);
 router.put('/edit/:id',uploadImages,editproduct);
 
 router.delete('/delete/:id',deleteProduct);
+
+router.get('/getBySku',getByVariantSku)
 
 export default router;
 
