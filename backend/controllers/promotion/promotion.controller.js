@@ -1,72 +1,111 @@
-import { initialValidation, dateValidation, validatePromotionType } from '../../services/promotion.service.js';
+import { initialValidation, dateValidation, validatePromotionType,checkPromotionOverlap } from '../../services/promotion.service.js';
 import Promotion from '../../models/promotion.model.js';
 
-export const createPromotion = async (req, res) => {
-  try {
-    const { title, description, link, type, category, product, startDate, endDate, isActive, priority } = req.body;
 
-    
-    const initialCheck = initialValidation(req);
-    if (!initialCheck.success) {
-      return res.status(400).json(initialCheck);
-    }
+const asyncHandler = fn => (req, res, next) => fn(req, res, next).catch(next);
 
-    const dateCheck = dateValidation(startDate, endDate);
-    if (!dateCheck.success) {
-      return res.status(400).json(dateCheck);
-    }
 
-    const images = req.uploadedImages || [];
-    if (!images.length) {
-      return res.status(400).json({ success: false, message: "No images uploaded" });
-    }
 
-    const discount = req.body.discount ? parseFloat(req.body.discount) : null;
-    if (discount !== null && (isNaN(discount) || discount < 0 || discount > 100)) {
-      return res.status(400).json({
-        success: false,
-        message: "Discount must be a number between 0 and 100"
-      });
-    }
 
-    const promotionTypeCheck = validatePromotionType(type, category, product);
-    if (!promotionTypeCheck.success) {
-      return res.status(400).json(promotionTypeCheck);
-    }
+export const createPromotion = asyncHandler(async (req, res) => {
+  const { title, description, link, type, category, product, startDate, endDate, isActive, priority } = req.body;
 
-    const promotionData = {
-      title,
-      description,
-      link,
-      type,
-      images,
-      category: type === 'category' ? category : null,
-      product: type === 'product' ? product : null,
-      isActive: isActive !== undefined ? isActive : true,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      priority: priority || 0,
-      discount: discount !== null ? discount : undefined
-    };
+  const initialCheck = initialValidation(req);
+  if (!initialCheck.success) return res.status(400).json(initialCheck);
 
-    const promo = await Promotion.create(promotionData);
-    return res.status(201).json({
-      success: true,
-      message: "Promotion created successfully",
-      data: promo
-    });
+  const dateCheck = dateValidation(startDate, endDate);
+  if (!dateCheck.success) return res.status(400).json(dateCheck);
 
-  } catch (error) {
-    console.error("Error creating promotion:", error);
-    return res.status(500).json({
+  const images = req.uploadedImages || [];
+  if (!images.length) return res.status(400).json({ success: false, message: "No images uploaded" });
+
+  const discountPercent = req.body.discount ? parseFloat(req.body.discount) : null;
+  if (discountPercent !== null && (isNaN(discountPercent) || discountPercent < 0 || discountPercent > 100)) {
+    return res.status(400).json({ success: false, message: "Discount must be between 0 and 100" });
+  }
+
+  const typeCheck = validatePromotionType(type, category, product);
+  if (!typeCheck.success) return res.status(400).json(typeCheck);
+
+  const overlap = await checkPromotionOverlap({ type, category, product, startDate, endDate });
+  if (overlap) {
+    return res.status(409).json({
       success: false,
-      message: "Failed to create promotion",
-      error: error.message
+      message: 'Another active promotion overlaps with this date range',
+      data: overlap._id
     });
   }
-};
+
+  const promotionData = {
+    title,
+    description,
+    link,
+    type,
+    images,
+    category: type === 'category' ? category : null,
+    product: type === 'product' ? product : null,
+    isActive: isActive !== undefined ? isActive : true,
+    startDate: new Date(startDate),
+    endDate: endDate ? new Date(endDate) : null,
+    priority: priority || 0,
+    discount: discountPercent ?? undefined,
+    createdBy: req.user?._id,
+  };
+
+  const promo = await Promotion.create(promotionData);
+  res.status(201).json({ success: true, message: 'Promotion created successfully', data: promo });
+});
 
 
-//////////////////////////
+///////////////////////////////////////////////////
 
 
+export const getAllPromotions = asyncHandler(async (req, res) => {
+  const now = new Date();
+  const promotions = await Promotion.find({
+    isActive: true,
+    
+  }).sort({ priority: -1, startDate: 1 });
+
+  if (!promotions.length) {
+    return res.status(404).json({ success: false, message: "No active promotions found" });
+  }
+
+  res.status(200).json({ success: true, message: "Active promotions retrieved successfully", data: promotions });
+});
+
+
+/////////////////////////////////////////////
+
+export const updatePromotions = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const existing = await Promotion.findById(id);
+  if (!existing) return res.status(404).json({ success: false, message: "Promotion not found" });
+
+  const update = {
+    ...req.body,
+    updatedBy: req.user?._id,
+    images: req.uploadedImages || existing.images,
+  };
+
+  if (update.startDate) update.startDate = new Date(update.startDate);
+  if (update.endDate) update.endDate = new Date(update.endDate);
+  if (update.discount) update.discount = parseFloat(update.discount);
+
+  const updated = await Promotion.findByIdAndUpdate(id, update, { new: true, runValidators: true });
+  res.status(200).json({ success: true, message: "Promotion updated successfully", data: updated });
+});
+
+//////////////////////////////////////////////////////////
+
+
+
+export const deletePromotion = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const promo = await Promotion.findById(id);
+  if (!promo) return res.status(404).json({ success: false, message: "Promotion not found" });
+
+  
+  await Promotion.findByIdAndUpdate(id, { isActive: false, deleted: true });
+  res.status(200).json({ success: true, message: "Promotion soft-deleted successfully" });
+});

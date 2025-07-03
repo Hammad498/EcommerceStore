@@ -1,5 +1,5 @@
 
-
+import Promotion from '../models/promotion.model.js';
 
 
 export const initialValidation = (req) => {
@@ -47,6 +47,21 @@ export const validatePromotionType=(type,category,product)=>{
     }
     return { success: true };
 }
+
+
+//////////////////////////////////////////////////
+
+export const checkPromotionOverlap=async ({ type, category, product, startDate, endDate }) => {
+  return await Promotion.findOne({
+    type,
+    category: type === 'category' ? category : undefined,
+    product : type === 'product'  ? product  : undefined,
+    isActive: true,
+    $or: [
+      { startDate: { $lte: new Date(endDate) }, endDate: { $gte: new Date(startDate) } }
+    ]
+  });
+};
 
 
 
