@@ -126,68 +126,78 @@ export const createProduct = async (req, res) => {
 
 export const getAllProducts = async (req, res) => {
   try {
+    
     const now = new Date();
-
-    // 1. Get active promotions
     const promos = await Promotion.find({
       isActive: true,
       startDate: { $lte: now },
-      endDate: { $gte: now },
-    }).select("type category product variationSKU discount startDate endDate");
+      endDate  : { $gte: now }
+    }).select("type category product variationSKU discount");
 
-    // 2. Fetch products WITHOUT .lean()
-    const products = await Product.find({})
-      .populate({ path: "category", select: "name" })
+    
+    const catMap = new Map(
+      (await Category.find({}).select("name").lean())
+        .map(c => [c._id.toString(), c.name.toLowerCase()])
+    );
+
+    
+    const docs = await Product.find({})
+      .populate({ path: "category",  select: "name" })
       .populate({ path: "createdBy", select: "name" })
       .sort({ createdAt: -1 })
       .select("-__v -createdBy.email -createdBy.role");
 
-    if (!products || products.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No products found",
-      });
+    if (!docs.length) {
+      return res.status(404).json({ success:false, message:"No products found" });
     }
 
-    // 3. Process discounts
-    const withPromo = products.map((prodDoc) => {
-      const prod = prodDoc.toObject(); // Convert to plain JS object
+    
+    const data = docs.map(doc => {
+      const prod = doc.toObject();
 
-      const matchedPromos = promos.filter((promo) =>
-        (promo.type === "category" && promo.category?.toString() === prod.category?._id?.toString()) ||
-        (promo.type === "product" && promo.product?.toString() === prod._id?.toString()) ||
-        (promo.type === "variation" && prod.variations?.some(v => v.variantSKU === promo.variationSKU))
+      const catId   = prod.category?._id?.toString() || prod.category;
+      const catName = catMap.get(catId);
+
+      const matchedPromos = promos.filter(p =>
+        (p.type === "category" &&
+          (p.category?.toString() === catId ||
+           p.category  === catName)) ||
+        (p.type === "product"   && p.product?.toString() === prod._id.toString()) ||
+        (p.type === "variation" && p.variationSKU &&
+          prod.variations?.some(v =>
+            v.variantSKU?.trim().toLowerCase() === p.variationSKU.trim().toLowerCase()))
       );
 
-      prod.variations = prod.variations.map((variation) =>
-        applyBestDiscount(variation, matchedPromos)
+     
+      prod.variations = prod.variations.map(v =>
+        applyBestDiscount({ ...v }, matchedPromos)
       );
 
-      const prices = prod.variations.map(v => v.finalPrice ?? v.price ?? 0);
-      prod.priceRange = {
-        min: Math.min(...prices),
-        max: Math.max(...prices),
-      };
+     
+      const prices = prod.variations.map(v => v.finalPrice ?? v.price);
+      prod.priceRange = { min: Math.min(...prices), max: Math.max(...prices) };
 
       return prod;
     });
 
-    // 4. Send response
+    
     res.status(200).json({
       success: true,
       message: "Products fetched successfully",
-      data: withPromo,
+      data
     });
 
-  } catch (error) {
-    console.error("Error in fetching all the products!", error);
+  } catch (err) {
+    console.error("getAllProducts error:", err);
     res.status(500).json({
-      success: false,
-      message: "Failed to fetch: server error",
-      error: error.message,
+      success:false,
+      message:"Failed to fetch: server error",
+      error   : err.message
     });
   }
 };
+
+
 
 
 
@@ -202,8 +212,7 @@ export const getById = async (req, res) => {
     }
 
     const product = await Product.findById(id)
-      // .populate({ path: "category", select: "name" })
-      // .populate({ path: "createdBy", select: "name" })
+      
       .select("-__v -createdBy.email -createdBy.role")
       .lean();  
 

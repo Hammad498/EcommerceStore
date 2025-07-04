@@ -71,46 +71,46 @@ export const validatePromotionType = (type, category, product, variationSKU) => 
 
 
 
-export const applyBestDiscount = (variation, promotions = []) => {
-  const basePrice      = Number(variation.price);
+
+
+
+
+export function applyBestDiscount(variation, promos = []) {
+  const basePrice = Number(variation.price);
   const staticDiscount = variation.discountPrice > 0 ? Number(variation.discountPrice) : null;
-  const now = new Date();
 
-  // keep only promos that really apply to *this* variation
-  const activePromos = promotions.filter(p =>
-    p.isActive &&
-    new Date(p.startDate) <= now &&
-    new Date(p.endDate)   >= now &&
-    (
-      p.type === 'variation'
-        ? p.variationSKU === variation.variantSKU          // variation match
-        : true                                             // product / category already pre‑filtered
-    )
-  );
+  let bestDiscountPercent = 0;
+  let appliedPromoId = null;
 
-  let bestPrice = basePrice;
-  let bestPromo = null;
-
-  activePromos.forEach(p => {
-    if (p.discount > 0) {
-      const promoPrice = +(basePrice * (1 - p.discount / 100)).toFixed(2);
-      if (promoPrice < bestPrice) {
-        bestPrice = promoPrice;
-        bestPromo = p._id;
-      }
+  for (const promo of promos) {
+    if (promo.type === "variation") {
+      if (
+        promo.variationSKU?.trim().toLowerCase() !==
+        variation.variantSKU?.trim().toLowerCase()
+      ) continue;
     }
-  });
 
-  const finalPrice = staticDiscount !== null
-    ? Math.min(bestPrice, staticDiscount)
-    : bestPrice;
+    if (promo.discount && Number(promo.discount) > bestDiscountPercent) {
+      bestDiscountPercent = Number(promo.discount);
+      appliedPromoId = promo._id;
+    }
+  }
+
+  const promoPrice = bestDiscountPercent
+    ? +(basePrice * (1 - bestDiscountPercent / 100)).toFixed(2)
+    : basePrice;
+
+  const finalPrice =
+    staticDiscount != null ? Math.min(staticDiscount, promoPrice) : promoPrice;
 
   return {
     ...variation,
     basePrice,
     staticDiscount,
-    promoId: bestPromo,
-    finalPrice
+    discountPercent: bestDiscountPercent,
+    finalPrice,
+    appliedPromoId,
   };
-};
+}
+
 
