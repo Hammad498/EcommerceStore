@@ -120,7 +120,7 @@ export function applyBestDiscountProduct(variation, promos = []) {
 export function applyBestDiscount(variation, matchedPromotions) {
   const basePrice = Number(variation.price);
   if (isNaN(basePrice)) {
-    console.error("❌ Invalid basePrice from variation:", variation);
+   
     return { basePrice: NaN, staticDiscount: null, discountPercent: null, finalPrice: NaN };
   }
 
@@ -141,7 +141,7 @@ export function applyBestDiscount(variation, matchedPromotions) {
 
   let finalPrice = basePrice;
 
-  // Choose better between staticDiscount and percentDiscount
+ 
   const percentDiscountAmount = discountPercent ? (basePrice * discountPercent) / 100 : null;
 
   if (staticDiscount !== null && percentDiscountAmount !== null) {
@@ -152,19 +152,9 @@ export function applyBestDiscount(variation, matchedPromotions) {
     finalPrice = basePrice - percentDiscountAmount;
   }
 
-  finalPrice = Math.max(0, finalPrice); // prevent negative prices
+  finalPrice = Math.max(0, finalPrice); 
 
-  console.log("📦 applyBestDiscount input:", {
-  price: variation.price,
-  discountPrice: variation.discountPrice,
-  matchedPromotions,
-});
-  console.log("📦 applyBestDiscount output:", {
-    basePrice,
-    staticDiscount,
-    discountPercent,
-    finalPrice
-  });
+ 
 
   return {
     basePrice,
