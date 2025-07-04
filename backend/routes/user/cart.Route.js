@@ -14,6 +14,14 @@ router.delete('/:id',isUser,removeFromCart);
 router.delete('/',isUser,cleanCart);
 
 
+// router.post('/',addToCart);
+// router.get('/',getCart);
+
+// router.put('/:id',updateCartItem);
+// router.delete('/:id',removeFromCart);
+
+// router.delete('/',cleanCart);
+
 
 
 
