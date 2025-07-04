@@ -75,7 +75,7 @@ export const validatePromotionType = (type, category, product, variationSKU) => 
 
 
 
-export function applyBestDiscount(variation, promos = []) {
+export function applyBestDiscountProduct(variation, promos = []) {
   const basePrice = Number(variation.price);
   const staticDiscount = variation.discountPrice > 0 ? Number(variation.discountPrice) : null;
 
@@ -112,5 +112,67 @@ export function applyBestDiscount(variation, promos = []) {
     appliedPromoId,
   };
 }
+
+
+////////////////////////////////////////////
+
+
+export function applyBestDiscount(variation, matchedPromotions) {
+  const basePrice = Number(variation.price);
+  if (isNaN(basePrice)) {
+    console.error("❌ Invalid basePrice from variation:", variation);
+    return { basePrice: NaN, staticDiscount: null, discountPercent: null, finalPrice: NaN };
+  }
+
+  let staticDiscount = variation.discountPrice ?? null;
+  if (staticDiscount && staticDiscount > 0 && staticDiscount < basePrice) {
+    staticDiscount = basePrice - staticDiscount;
+  } else {
+    staticDiscount = null;
+  }
+
+  const percentDiscounts = matchedPromotions
+    .filter(p => typeof p.discount === "number")
+    .map(p => p.discount);
+
+  const discountPercent = percentDiscounts.length
+    ? Math.max(...percentDiscounts)
+    : null;
+
+  let finalPrice = basePrice;
+
+  // Choose better between staticDiscount and percentDiscount
+  const percentDiscountAmount = discountPercent ? (basePrice * discountPercent) / 100 : null;
+
+  if (staticDiscount !== null && percentDiscountAmount !== null) {
+    finalPrice = Math.min(basePrice - staticDiscount, basePrice - percentDiscountAmount);
+  } else if (staticDiscount !== null) {
+    finalPrice = basePrice - staticDiscount;
+  } else if (percentDiscountAmount !== null) {
+    finalPrice = basePrice - percentDiscountAmount;
+  }
+
+  finalPrice = Math.max(0, finalPrice); // prevent negative prices
+
+  console.log("📦 applyBestDiscount input:", {
+  price: variation.price,
+  discountPrice: variation.discountPrice,
+  matchedPromotions,
+});
+  console.log("📦 applyBestDiscount output:", {
+    basePrice,
+    staticDiscount,
+    discountPercent,
+    finalPrice
+  });
+
+  return {
+    basePrice,
+    staticDiscount,
+    discountPercent,
+    finalPrice,
+  };
+}
+
 
 

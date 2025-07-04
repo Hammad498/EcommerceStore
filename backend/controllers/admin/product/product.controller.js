@@ -4,7 +4,7 @@ import Category from "../../../models/product/category.model.js";
 import slugify from "slugify";
 import {skuGenerator} from '../../../services/skuGenerator.js'
 import mongoose from "mongoose";
-import {applyBestDiscount} from '../../../services/promotion.service.js'
+import {applyBestDiscountProduct} from '../../../services/promotion.service.js'
 import Promotion from "../../../models/promotion.model.js";
 
 
@@ -170,7 +170,7 @@ export const getAllProducts = async (req, res) => {
 
      
       prod.variations = prod.variations.map(v =>
-        applyBestDiscount({ ...v }, matchedPromos)
+        applyBestDiscountProduct({ ...v }, matchedPromos)
       );
 
      
@@ -232,7 +232,7 @@ export const getById = async (req, res) => {
       ]
     });
 
-    product.variations = product.variations.map(v => applyBestDiscount(v, promos));
+    product.variations = product.variations.map(v => applyBestDiscountProduct(v, promos));
 
     res.status(200).json({
       success: true,
@@ -446,7 +446,7 @@ export const getByVariantSku = async (req, res) => {
 
 
     
-    const discountedVariation = applyBestDiscount(matchedVariation, promos);
+    const discountedVariation = applyBestDiscountProduct(matchedVariation, promos);
 
    
     product.variations = [discountedVariation];
