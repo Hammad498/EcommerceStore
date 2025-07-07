@@ -116,3 +116,18 @@ export const deletePromotion = asyncHandler(async (req, res) => {
   await Promotion.findByIdAndUpdate(id, { isActive: false, deleted: true });
   res.status(200).json({ success: true, message: "Promotion soft-deleted successfully" });
 });
+
+
+////////////////////////////////////
+
+
+export const deleteAllPromotions=async(req,res)=>{
+  try {
+    const promotiona=await Promotion.deleteMany({ isActive: true });
+    
+    res.status(200).json({ success: true, message: "All active promotions deleted successfully", data: promotiona });
+  } catch (error) {
+    console.error("Error deleting promotions:", error);
+    res.status(500).json({ success: false, message: "Failed to delete promotions", error: error.message || "Internal Server Error" });
+  }
+}
