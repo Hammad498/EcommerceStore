@@ -94,9 +94,9 @@ export const updatePromotions = asyncHandler(async (req, res) => {
   if (update.discount) update.discount = parseFloat(update.discount);
 
   if (update.type) {
-  update.category     = update.type === 'category'  ? update.category     : null;
-  update.product      = update.type === 'product'   ? update.product      : null;
-  update.variationSKU = update.type === 'variation' ? update.variationSKU : null;
+  update.category = update.type ==='category'?update.category : null;
+  update.product= update.type ==='product'?update.product: null;
+  update.variationSKU = update.type ==='variation'? update.variationSKU:null;
 }
 
   const updated = await Promotion.findByIdAndUpdate(id, update, { new: true, runValidators: true });
@@ -124,10 +124,44 @@ export const deletePromotion = asyncHandler(async (req, res) => {
 export const deleteAllPromotions=async(req,res)=>{
   try {
     const promotiona=await Promotion.deleteMany({ isActive: true });
-    
+
     res.status(200).json({ success: true, message: "All active promotions deleted successfully", data: promotiona });
   } catch (error) {
     console.error("Error deleting promotions:", error);
     res.status(500).json({ success: false, message: "Failed to delete promotions", error: error.message || "Internal Server Error" });
+  }
+}
+
+
+///////////////////////////////////////////////
+////get active promotion that only user get to see the active promotions
+
+
+export const getActivePromotions=async(req,res)=>{
+  try {
+    const promotions=await Promotion.find({
+      isActive: true,
+      startDate: { $lte: new Date() },
+      endDate: { $gte: new Date() }
+    })
+    if(!promotions.length){
+      return res.status(404).json({
+        success:false,
+        message:"No active promotion found!",
+        data:[]
+      })
+    }
+    res.status(200).json({
+      success:true,
+      message:"Active promotions retrieved successfully",
+      data:promotions
+    })
+  } catch (error) {
+    console.error("Error retrieving active promotions:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve active promotions",
+      error: error.message || "Internal Server Error"
+    });
   }
 }

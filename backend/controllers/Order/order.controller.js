@@ -6,9 +6,12 @@ import { getCartIdentifier } from "../../services/cartIdentifier.js";
 import dotenv from 'dotenv';
 import stripe from '../../services/stripe/stripe.js'
 import mongoose from 'mongoose';
+import { mutateStock } from "../../services/stripe/mutateStock.js";
 
 
 dotenv.config();
+
+
 
 
 
@@ -26,7 +29,9 @@ export const createCheckoutSession = async (req, res) => {
 
         if (!cart || cart.items.length === 0) {
             return res.status(400).json({ message: "Cart is empty or not found" });
-        }
+        };
+
+        
 
         const cartItems = cart.items.map(item => {
          const product = item.product;
@@ -48,6 +53,8 @@ export const createCheckoutSession = async (req, res) => {
     ? selectedVariation.discountPrice
     : selectedVariation.price;
 
+    
+
   return {
     product: {
       _id: product._id.toString(),
@@ -58,7 +65,8 @@ export const createCheckoutSession = async (req, res) => {
     variation: item.variantSKU || null,
     quantity: item.quantity,
     price,
-    discountPrice: selectedVariation.discountPrice || 0
+    discountPrice: selectedVariation.discountPrice || 0,
+    
   };
 });
 
@@ -81,7 +89,7 @@ export const createCheckoutSession = async (req, res) => {
 };
 
 
-////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 
 export const createOrder = async (req, res) => {
   try {
@@ -98,6 +106,9 @@ export const createOrder = async (req, res) => {
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({ message: "Cart is empty" });
     }
+
+    const linesForStock = []
+
     const items = cart.items.map(item => {
     const product = item.product;
 
@@ -117,6 +128,14 @@ export const createOrder = async (req, res) => {
   const price = selectedVariation.discountPrice > 0
     ? selectedVariation.discountPrice
     : selectedVariation.price;
+
+    linesForStock.push({
+      productId: product._id.toString(),
+      sku: selectedVariation.variantSKU,
+      qty: item.quantity
+    });
+
+   
 
 
     const total = price * item.quantity;
@@ -142,7 +161,6 @@ export const createOrder = async (req, res) => {
 });
 
     
-
     const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
 
     const order = new Order({
@@ -156,8 +174,10 @@ export const createOrder = async (req, res) => {
       payment: {
         method: capitalize(req.body.paymentMethod || 'Stripe'),
         status: 'Pending',
+        sessionId: req.body.sessionId ,
       },
       notes: req.body.notes || '',
+      linesForStock,
     });
 
     await order.save();
@@ -269,7 +289,7 @@ export const updateOrderStatus=async(req,res)=>{
 
 
 
-export const handleStripeWebhook = (req, res) => {
+export const handleStripeWebhook = async(req, res) => {
   const sig = req.headers['stripe-signature'];
 
   let event;
@@ -284,6 +304,31 @@ export const handleStripeWebhook = (req, res) => {
   // Handle specific event types
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
+    try {
+      const order=await Order.findOne({
+        'payment.sessionId': session.id,
+        'payment.status': 'Pending'
+      })
+      if(!order){
+        console.log('No matching order found for session id',session.id);
+        return res.status(404).json({ message: "Order not found for this session" });
+      }
+
+
+      const mongoseSession=await Order.startSession();
+      await mongoseSession.withTransaction(async()=>{
+        await mutateStock(order.linesForStock,'decrease',mongoseSession);
+        order.payment.status = 'Paid';
+        order.payment.stripePaymentIntentId = session.payment_intent;
+        order.deliveryStatus = 'Processing';
+        await order.save({ session: mongoseSession });
+      })
+      console.log('Order updated successfully for session id:', session.id);
+      res.status(200).json({ message: "Order updated successfully" });
+    } catch (error) {
+      console.error("Error updating order:", error);
+      res.status(500).json({ message: "Internal server error", error: error.message });
+    }
     // Fulfill order
     console.log(' Payment success. Session ID:', session.id);
     // Your logic to create order, send email, etc.

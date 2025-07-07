@@ -48,7 +48,8 @@ const OrderSchema = new mongoose.Schema({
   currency: { type: String, default: 'usd' },
   payment: {
     method: String,
-    status: { type: String, default: 'Pending' }
+    status: { type: String, default: 'Pending' },
+   
   },
   deliveryStatus: { type: String, default: 'Pending' },
   isGuestOrder: { type: Boolean, default: false },

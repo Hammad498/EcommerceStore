@@ -73,7 +73,9 @@ export const validatePromotionType = (type, category, product, variationSKU) => 
 
 
 
+/////////////////////////////////////////////
 
+////for product variations
 
 export function applyBestDiscountProduct(variation, promos = []) {
   const basePrice = Number(variation.price);
