@@ -1,4 +1,4 @@
-
+import refundModel from "./refund.model.js";
 
 
 import mongoose from "mongoose";
@@ -49,9 +49,10 @@ const OrderSchema = new mongoose.Schema({
   payment: {
     method: String,
     status: { type: String, default: 'Pending' },
-    sessionId:{type:String}
-   
+    sessionId:{type:String},
+    paymentIntentId:{type:String}
   },
+  refunds:[refundModel],
   deliveryStatus: { type: String, default: 'Pending' },
   isGuestOrder: { type: Boolean, default: false },
   notes: String
