@@ -48,7 +48,7 @@ const OrderSchema = new mongoose.Schema({
   currency: { type: String, default: 'usd' },
   payment: {
     method: String,
-    status: { type: String, default: 'Pending' },
+    status: { type: String, default: 'Pending' ,enum:['Paid', 'Pending', 'Refunded', 'Failed']},
     sessionId:{type:String},
     paymentIntentId:{type:String}
   },
