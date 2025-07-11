@@ -52,7 +52,10 @@ const OrderSchema = new mongoose.Schema({
     sessionId:{type:String},
     paymentIntentId:{type:String}
   },
-  refunds:[refundModel],
+  refunds:{
+    type: [refundModel.schema],
+    default: []
+  },
   deliveryStatus: { type: String, default: 'Pending' },
   isGuestOrder: { type: Boolean, default: false },
   notes: String

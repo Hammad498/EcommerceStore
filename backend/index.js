@@ -15,6 +15,7 @@ import reviewRoutes from './routes/user/productReview.js';
 import cartRoutes from './routes/user/cart.Route.js';
 import orderRoutes from './routes/user/order.Route.js';
 import promotionRoutes from './routes/promotion.route.js'
+import refundRoutesAdmin from './routes/admin/paymentRefund.route.js';
 
 import { handleStripeWebhook } from './controllers/Order/order.controller.js';
 
@@ -59,6 +60,7 @@ app.use('/api/user/review', reviewRoutes);
 app.use('/api/user/cart', cartRoutes);
 app.use('/api/user/order', orderRoutes);
 app.use('/api/promotion',promotionRoutes);
+app.use('/api/admin/refund', refundRoutesAdmin);
 
 app.listen(PORT,'0.0.0.0', () => {
   console.log(`Server is running on http://localhost:${PORT}`);

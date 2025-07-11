@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
-import { Schema } from 'mongoose';
 
-const refundSchema=new Schema({
+
+const refundSchema=new mongoose.Schema({
     refundId:{
         type:String,
         required:true
