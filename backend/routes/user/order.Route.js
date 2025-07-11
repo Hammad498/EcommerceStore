@@ -2,7 +2,7 @@
 import Router from 'express';
 import {
   createCheckoutSession,
-  createOrder,
+  
   getOrderById,
   getOrdersByUser,
   updateOrderStatus,
@@ -20,7 +20,7 @@ const router = Router();
 router.post('/checkout-session', isUser, createCheckoutSession);
 
 // Create order
-router.post('/', isUser, createOrder);
+// router.post('/', isUser, createOrder);
 
 // Update order status (admin only)
 router.put('/:id/status', isAdmin, updateOrderStatus);

@@ -8,6 +8,56 @@ const stripe=new Stripe(process.env.STRIPE_SECRET_KEY);
 
 
 
+// export const createStripeCheckoutSession = async ({ user, cartItems, successUrl, cancelUrl }) => {
+//     const lineItems = cartItems.map(item => {
+//         const unitAmount = Math.round(
+//             ((typeof item.discountPrice === 'number' && item.discountPrice > 0)
+//                 ? item.discountPrice
+//                 : item.price || 0) * 100
+//         );
+
+//         const productData = {
+//             name: item.product.name || 'Unnamed Product',
+//             description: item.product.description || '',
+//         };
+
+        
+//         if (item.product.image && typeof item.product.image === 'string' && item.product.image.trim() !== '') {
+//             productData.images = [item.product.image];
+//         }
+
+//         return {
+//             price_data: {
+//                 currency: 'usd',
+//                 product_data: productData,
+//                 unit_amount: unitAmount,
+//             },
+//             quantity: item.quantity || 1,
+//         };
+//     });
+
+//     const session = await stripe.checkout.sessions.create({
+//         payment_method_types: ['card'],
+//         line_items: lineItems,
+//         mode: 'payment',
+//         customer_email: user?.email || undefined,
+//         success_url: successUrl,
+//         cancel_url: cancelUrl,
+//         metadata: {
+//             userId: user ? user._id.toString() : 'guest',
+//             cartItems: JSON.stringify(cartItems.map(item => ({
+//                 productId: item.product._id,
+//                 variation: item.variantSKU || '',
+//                 quantity: item.quantity,
+//             }))),
+//         },
+//     });
+
+//     return session;
+// };
+
+
+
 export const createStripeCheckoutSession = async ({ user, cartItems, successUrl, cancelUrl }) => {
     const lineItems = cartItems.map(item => {
         const unitAmount = Math.round(
@@ -21,7 +71,6 @@ export const createStripeCheckoutSession = async ({ user, cartItems, successUrl,
             description: item.product.description || '',
         };
 
-        
         if (item.product.image && typeof item.product.image === 'string' && item.product.image.trim() !== '') {
             productData.images = [item.product.image];
         }
@@ -43,11 +92,15 @@ export const createStripeCheckoutSession = async ({ user, cartItems, successUrl,
         customer_email: user?.email || undefined,
         success_url: successUrl,
         cancel_url: cancelUrl,
+        shipping_address_collection: {
+            allowed_countries: ['US', 'IN'], // adjust to your needs
+        },
+        billing_address_collection: 'required',
         metadata: {
             userId: user ? user._id.toString() : 'guest',
             cartItems: JSON.stringify(cartItems.map(item => ({
                 productId: item.product._id,
-                variation: item.variantSKU || '',
+                variation: item.variation || '',  // ✅ FIXED
                 quantity: item.quantity,
             }))),
         },
@@ -55,8 +108,6 @@ export const createStripeCheckoutSession = async ({ user, cartItems, successUrl,
 
     return session;
 };
-
-
 
 
 

@@ -49,6 +49,7 @@ const OrderSchema = new mongoose.Schema({
   payment: {
     method: String,
     status: { type: String, default: 'Pending' },
+    sessionId:{type:String}
    
   },
   deliveryStatus: { type: String, default: 'Pending' },
