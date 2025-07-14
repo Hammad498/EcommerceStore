@@ -2,57 +2,60 @@ import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
-const addressSchema=new mongoose.Schema({
-    firstName:{
-        type:String,
-    },
-    lastName:{
-        type:String,
-    },
-    companyName:{
-        type:String,
-    },
-    addressLine1:{
-        type:String,
-    },
-    addressLine2:{
-        type:String,
-    },
-    country:{
-        type:String,
-        required:true,
-        default:"Pakistan",
-    },
-    state:{
-        type:String,
-        required:true,
-        default:"Punjab",
-    },
-    city:{
-        type:String,
-        required:true,
-        default:"Lahore",
-    },
-    postalCode:{
-        type:String,
-        
-    },
-    phone:{
-        type:String,
-        match:/^\d{10}$/, 
-    }
+const addressSchema = new mongoose.Schema({
+  firstName: String,
+  lastName: String,
+  companyName: String,
+  addressLine1: String,
+  addressLine2: String,
+  city: {
+    type: String,
+    enum: ['Los Angeles', 'Houston', 'New York City', 'Miami', 'Chicago', 'Other'],
+    default: 'Other',
+  },
+  state: {
+    type: String,
+    enum: ['California', 'Texas', 'New York', 'Florida', 'Illinois', 'Other'],
+    default: 'Other',
+  },
+  postalCode: String,
+  country: {
+    type: String,
+    enum: ['USA', 'Canada', 'UK', 'Australia', 'India', 'Other'],
+    default: 'Other',
+  },
+  email: {
+    type: String,
+    match: /.+\@.+\..+/,
+  },
+  phone: {
+    type: String,
+    match: /^\d{10}$/,
+  },
+}, { _id: false,timestamps: true });
 
-},{_id: false, timestamps: true});
+
+
 
 const userSchema=new mongoose.Schema({
+
+    profileImage: {
+    type: String,
+    default: "", 
+  },
+  displayName: {
+    type: String,
+  },
     name:{
         type:String,
         required:true,
         min: 3,
     },
-    username:{
-        type:String
-    },
+    username: {
+    type: String,
+    unique: true,
+    sparse: true,
+  },
     email:{
         type:String,
         required:true,
@@ -60,15 +63,30 @@ const userSchema=new mongoose.Schema({
         match: /.+\@.+\..+/,
         min: 5,
     },
+    secondaryEmail: {
+    type: String,
+    match: /.+\@.+\..+/,
+  },
     password:{
         type:String,
         required:true,
         min: 6,
     },
-    phone:{
-        type:String,
-        match:/^\d{10}$/, 
-    },
+    phone: {
+    type: String,
+    match: /^\d{10}$/,
+  },
+  country: {
+    type: String,
+    enum: ['USA', 'Canada', 'UK', 'Australia', 'India', 'Other'],
+    default: 'Other',
+  },
+  state: {
+    type: String,
+    enum: ['California', 'Texas', 'New York', 'Florida', 'Illinois', 'Other'],
+    default: 'Other',
+  },
+  zip: String,
     role:{
         type:String,
         enum:["user", "admin"],
@@ -80,7 +98,7 @@ const userSchema=new mongoose.Schema({
         type:Boolean,
         default:false,
     },
-    
+
     shippingAddress:addressSchema,
     billingAddress:addressSchema,
 
