@@ -39,7 +39,7 @@ const addressSchema = new mongoose.Schema({
 
 const userSchema=new mongoose.Schema({
 
-    profileImage: {
+    images: {
     type: String,
     default: "", 
   },
@@ -55,6 +55,9 @@ const userSchema=new mongoose.Schema({
     type: String,
     unique: true,
     sparse: true,
+  },
+  fullName:{
+        type:String,
   },
     email:{
         type:String,

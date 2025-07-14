@@ -7,7 +7,7 @@ import fs from "fs/promises";
 
 export const uploadImages = async (req, res, next) => {
   try {
-    if (!req.files || !req.files.images) {
+    if (!req.files || !req.files.images ) {
       return res.status(400).json({ message: "No images uploaded" });
     }
 
