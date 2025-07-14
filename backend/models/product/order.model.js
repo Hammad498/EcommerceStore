@@ -1,4 +1,4 @@
-import refundModel from "./refund.model.js";
+
 
 
 import mongoose from "mongoose";
@@ -48,14 +48,11 @@ const OrderSchema = new mongoose.Schema({
   currency: { type: String, default: 'usd' },
   payment: {
     method: String,
-    status: { type: String, default: 'Pending' ,enum:['Paid', 'Pending', 'Refunded', 'Failed']},
     sessionId:{type:String},
-    paymentIntentId:{type:String}
+   paymentIntentId: String,
+  status: { type: String, enum: ['Pending', 'Paid', 'Refunded'], default: 'Pending' }
   },
-  refunds:{
-    type: [refundModel.schema],
-    default: []
-  },
+ refunds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Refund' }],
   deliveryStatus: { type: String, default: 'Pending' },
   isGuestOrder: { type: Boolean, default: false },
   notes: String

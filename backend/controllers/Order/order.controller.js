@@ -54,23 +54,33 @@ export async function createCheckoutSession(req, res) {
   }
 }
 
-/////////////////////////////////////////////////////////
+/////////////////////////////////
 
-export const handleStripeWebhook=async(req, res)=> {
+
+
+
+export const handleStripeWebhook = async (req, res) => {
   try {
     const event = verifyStripeWebHook(req, res);
 
-    if (event.type === "checkout.session.completed") {
-      console.log(" Stripe session completed:", event.data.object.id);
-    
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+
+      const order = await Order.findById(session.metadata.orderId);
+      if (order) {
+        order.payment.paymentIntentId = session.payment_intent;
+        order.payment.status = 'Paid';
+        await order.save();
+        console.log('payemntIntentId for the order is : ',order.payment.paymentIntentId);
+      }
     }
 
-    res.json({ received: true });
+    res.status(200).json({ received: true });
   } catch (err) {
-    console.error("Webhook Error:", err);
+    console.error('Webhook Error:', err.message);
     res.status(400).send(`Webhook Error: ${err.message}`);
   }
-}
+};
 
 ///////////////////////////////////////////////////
 
@@ -135,7 +145,7 @@ export async function createOrder(req, res) {
   }
 }
 
-// 4) Get Order by ID
+
 export async function getOrderById(req, res) {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -145,7 +155,7 @@ export async function getOrderById(req, res) {
     const order = await Order.findById(req.params.id).populate('user').lean();
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    // auth checks omitted for brevity...
+    
 
     res.json(order);
 
