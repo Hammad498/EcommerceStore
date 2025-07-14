@@ -2,11 +2,56 @@ import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
+const addressSchema=new mongoose.Schema({
+    firstName:{
+        type:String,
+    },
+    lastName:{
+        type:String,
+    },
+    companyName:{
+        type:String,
+    },
+    addressLine1:{
+        type:String,
+    },
+    addressLine2:{
+        type:String,
+    },
+    country:{
+        type:String,
+        required:true,
+        default:"Pakistan",
+    },
+    state:{
+        type:String,
+        required:true,
+        default:"Punjab",
+    },
+    city:{
+        type:String,
+        required:true,
+        default:"Lahore",
+    },
+    postalCode:{
+        type:String,
+        
+    },
+    phone:{
+        type:String,
+        match:/^\d{10}$/, 
+    }
+
+},{_id: false, timestamps: true});
+
 const userSchema=new mongoose.Schema({
     name:{
         type:String,
         required:true,
         min: 3,
+    },
+    username:{
+        type:String
     },
     email:{
         type:String,
@@ -20,6 +65,10 @@ const userSchema=new mongoose.Schema({
         required:true,
         min: 6,
     },
+    phone:{
+        type:String,
+        match:/^\d{10}$/, 
+    },
     role:{
         type:String,
         enum:["user", "admin"],
@@ -31,6 +80,11 @@ const userSchema=new mongoose.Schema({
         type:Boolean,
         default:false,
     },
+    
+    shippingAddress:addressSchema,
+    billingAddress:addressSchema,
+
+
     createdAt:{
         type:Date,
         default:Date.now,
