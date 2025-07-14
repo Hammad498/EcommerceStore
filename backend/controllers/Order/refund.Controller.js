@@ -14,12 +14,26 @@ export const createRefund = async (req, res) => {
       });
     }
 
+    // Validate Stripe-allowed reasons
+    const validReasons = ['duplicate', 'fraudulent', 'requested_by_customer'];
+    if (!validReasons.includes(reason)) {
+      return res.status(400).json({
+        message: `Invalid reason: must be one of ${validReasons.join(', ')}`,
+        success: false,
+      });
+    }
+
     const order = await Order.findById(id);
     if (!order) {
       return res.status(404).json({
         message: "Order not found!",
         success: false,
       });
+    }
+
+    const paymentIntentId = order.payment?.paymentIntentId;
+    if (!paymentIntentId) {
+      return res.status(400).json({ message: 'PaymentIntent ID missing from order' });
     }
 
     if (order.payment.status !== 'Paid') {
@@ -29,40 +43,32 @@ export const createRefund = async (req, res) => {
       });
     }
 
-    if (!order.payment.paymentIntentId) {
-      return res.status(400).json({
-        message: "Missing paymentIntentId in order!",
-        success: false,
-      });
-    }
-
-    // Create refund using Stripe
+    //  Create refund on Stripe
     const refund = await stripe.refunds.create({
-      payment_intent: order.payment.paymentIntentId,
-      amount: Math.round(amount * 100), // convert dollars to cents
-      reason: reason,
+      payment_intent: paymentIntentId,
+      amount: Math.round(amount * 100), 
+      reason,
       metadata: {
         orderId: order._id.toString(),
         userId: order.user ? order.user.toString() : 'guest',
       },
     });
 
-    // Save refund in Refund collection
+  
     const refundRecord = await Refund.create({
       refundId: refund.id,
-      amount: refund.amount / 100, // store in dollars
+      amount: refund.amount / 100, 
       currency: refund.currency,
       reason,
-      status: refund.status,
+      status: refund.status.charAt(0).toUpperCase()+refund.status.slice(1),
       orderId: order._id,
     });
 
-    // Optionally push into order model (if your Order model has refunds array)
-    order.refunds.push(refundRecord);
     
-    // Calculate total refunded in dollars
-    const totalRefunded = order.refunds.reduce((total, r) => total + r.amount, 0);
+    order.refunds.push(refundRecord);
 
+    
+    const totalRefunded = order.refunds.reduce((sum, r) => sum + r.amount, 0);
     if (totalRefunded >= order.totalAmount) {
       order.payment.status = 'Refunded';
     }
@@ -84,3 +90,4 @@ export const createRefund = async (req, res) => {
     });
   }
 };
+

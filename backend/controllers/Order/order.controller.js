@@ -75,12 +75,40 @@ export const handleStripeWebhook = async (req, res) => {
       }
     }
 
-    res.status(200).json({ received: true });
+    res.status(200).json({ received: true,paymentIntentId: event.data.object.payment_intent });
+    console.log('Webhook received and processed successfully');
   } catch (err) {
     console.error('Webhook Error:', err.message);
     res.status(400).send(`Webhook Error: ${err.message}`);
   }
 };
+
+// export const handleStripeWebhook = async (req, res) => {
+//   try {
+//     const event = verifyStripeWebHook(req, res);
+
+//     if (event.type === 'checkout.session.completed') {
+//       const session = event.data.object;
+
+//       const order = await Order.findOne({ 'payment.sessionId': session.id }); 
+//       if (order) {
+//         order.payment.paymentIntentId = session.payment_intent;
+//         order.payment.status = 'Paid';
+//         await order.save();
+//         console.log(' paymentIntentId for the order is:', order.payment.paymentIntentId);
+//       } else {
+//         console.warn(' Order not found for session:', session.id);
+//       }
+//     }
+
+//     res.status(200).json({ received: true, paymentIntentId: event.data.object.payment_intent });
+//     console.log(' Webhook received and processed successfully');
+//   } catch (err) {
+//     console.error(' Webhook Error:', err.message);
+//     res.status(400).send(`Webhook Error: ${err.message}`);
+//   }
+// };
+
 
 ///////////////////////////////////////////////////
 
@@ -93,6 +121,18 @@ export async function createOrder(req, res) {
     if (!sessionId) return res.status(400).json({ message: 'sessionId required' });
     if (!shippingAddress || !billingAddress) {
       return res.status(400).json({ message: 'shipping and billing addresses required' });
+    }
+
+    const session = await retrieveStripeSession(sessionId);
+    const paymentIntentId = session?.payment_intent;
+    if (!paymentIntentId) {
+      return res.status(400).json({ message: 'Payment intent ID missing from Stripe session' });
+    }
+
+    
+    const paymentIntent = await retrievePaymentIntent(paymentIntentId);
+    if (!paymentIntent || paymentIntent.status !== 'succeeded') {
+      return res.status(400).json({ message: 'Payment was not successful' });
     }
 
     const cart = await Cart.findOne(
@@ -129,7 +169,7 @@ export async function createOrder(req, res) {
       billingAddress,
       totalAmount,
       currency: 'usd',
-      payment: { method: paymentMethod, status: 'Paid', sessionId },
+      payment: { method: paymentMethod, status: 'Paid', sessionId, paymentIntentId },
       notes,
       linesForStock
     });
@@ -137,6 +177,8 @@ export async function createOrder(req, res) {
     await order.save();
     // await mutateStock(linesForStock, 'decrease');
     await Cart.deleteOne({ _id: cart._id });
+
+
 
     res.status(201).json({ message: 'Order created', orderId: order._id, order });
   } catch (err) {
