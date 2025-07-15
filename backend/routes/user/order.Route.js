@@ -44,13 +44,13 @@ router.delete('/:id', isAdmin, deleteOrder);
 //  Get user orders
 router.get('/user', isUser, getOrdersByUser);
 
-
+//for user dashboard (user all orders)
+router.get('/paginated',isUser,getUserOrdersPaginated);
 
 //  Get specific order (user or admin)
 router.get('/:id', isUser, getOrderById);
 
 
-//for user dashboard (user all orders)
-router.get('/paginated',isUser,getUserOrdersPaginated);
+
 
 export default router;
