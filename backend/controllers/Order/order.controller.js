@@ -531,7 +531,12 @@ export const orderItemsForThatorder = async (req, res) => {
         sku: item.variation.sku,
         material: item.variation.material,
         color: item.variation.color
-      }
+      },
+      orderId: order._id,
+      billingAddress: order.billingAddress,
+      shippingAddress: order.shippingAddress,
+      phone: req.user.shippingAddress.phone || '',
+      email: req.user ? req.user.email : '',
     }));
 
     res.status(200).json({ message: 'Order items fetched successfully', items });
