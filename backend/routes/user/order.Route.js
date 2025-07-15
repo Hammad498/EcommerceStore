@@ -10,7 +10,10 @@ import {
   getAllOrders,
   getOrdersByStatus,
   deleteOrder,
-  getUserOrdersPaginated
+  getUserOrdersPaginated,
+  updateTrackHistory,
+  deleteTrackingHistory,
+  orderItemsForThatorder
 } from '../../controllers/Order/order.controller.js';
 
 import { isAdmin } from '../../middlewares/roles/isAdmin.js';
@@ -47,8 +50,20 @@ router.get('/user', isUser, getOrdersByUser);
 //for user dashboard (user all orders)
 router.get('/paginated',isUser,getUserOrdersPaginated);
 
+//order detail page for userDashboard
+router.get('/orderProducts',isUser,orderItemsForThatorder);
+
 //  Get specific order (user or admin)
 router.get('/:id', isUser, getOrderById);
+
+
+router.put('/tracking/:id',isAdmin,updateTrackHistory);
+
+
+//delete trackingHistory with id of that trackingHistory OnlyAdmin
+router.delete('/delete/:id',isAdmin,deleteTrackingHistory);
+
+
 
 
 

@@ -54,6 +54,21 @@ const OrderSchema = new mongoose.Schema({
   },
  refunds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Refund' }],
   deliveryStatus: { type: String, default: 'Pending' },
+
+  trackingHistory:[
+    {
+      status:String,
+      enum:['Order Placed','Packaging','On the road','Delivered', 'Cancelled'],
+      timestamp: { type: Date, default: Date.now },
+      message:String
+    }
+  ],
+
+
+
+
+
+
   isGuestOrder: { type: Boolean, default: false },
   notes: String
 }, {

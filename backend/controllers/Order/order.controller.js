@@ -434,6 +434,120 @@ export const getUserOrdersPaginated=async(req,res)=>{
   }
 }
 
+/////////////////////////////////////////////////////
+
+
+export const updateTrackHistory=async(req,res)=>{
+  try {
+    const { status, message } = req.body;
+
+    const validStatuses = ['Order Placed', 'Packaging', 'On the road', 'Delivered', 'Cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    } 
+
+    if (!status || !message) {
+      return res.status(400).json({ message: 'Status and message are required' });
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    order.trackingHistory.push({
+      status,
+      message,
+      timestamp: new Date()
+    });
+    // const lastStatus = order.trackingHistory[order.trackingHistory.length - 1];
+    // if (lastStatus && lastStatus.status === status) {
+    //   return res.status(200).json({ message: 'Tracking history already updated with this status', success: true, trackingHistory: order.trackingHistory });
+    // }
+
+    await order.save();
+
+    res.status(200).json({ message: 'Tracking history updated successfully', success: true, trackingHistory: order.trackingHistory });
+  } catch (error) {
+    console.error('Error updating tracking history:', error);
+    res.status(500).json({ message: 'Failed to update tracking history', success: false, error: error.message });
+  }
+}
+
+
+////////////////////////////////
+
+
+export const deleteTrackingHistory=async(req,res)=>{
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (order.trackingHistory.length === 0) {
+      return res.status(400).json({ message: 'No tracking history to delete' });
+    }
+
+    order.trackingHistory = order.trackingHistory.filter((_, index) => index !== order.trackingHistory.length - 1);
+    await order.save();
+
+    res.status(200).json({ message: 'Last tracking history deleted successfully', success: true, trackingHistory: order.trackingHistory });
+  } catch (error) {
+    console.error('Error deleting tracking history:', error);
+    res.status(500).json({ message: 'Failed to delete tracking history', success: false, error: error.message });
+    
+  }
+}
+
+
+
+//////////////////////////////////////
+
+
+export const orderItemsForThatorder = async (req, res) => {
+  try {
+    const orderId = req.query.orderId;
+    if (!orderId) {
+      return res.status(400).json({ message: 'Order ID is required' });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const items = order.items.map(item => ({
+      image: item.product.image || '',
+      quantity: item.quantity,
+      price: item.variation.discountPrice > 0 ? item.variation.discountPrice : item.variation.price,
+      total: (item.variation.discountPrice > 0 ? item.variation.discountPrice : item.variation.price) * item.quantity,
+      product: {
+        _id: item.product._id,
+        title: item.product.title,
+        description: item.product.description
+      },
+      variation: {
+        sku: item.variation.sku,
+        material: item.variation.material,
+        color: item.variation.color
+      }
+    }));
+
+    res.status(200).json({ message: 'Order items fetched successfully', items });
+  } catch (error) {
+    console.error("Error fetching order items!", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error while fetching order items",
+      error: error.message
+    });
+  }
+}
+
+
+
+
 
 
 
