@@ -10,18 +10,18 @@ const addressSchema = new mongoose.Schema({
   addressLine2: String,
   city: {
     type: String,
-    enum: ['Los Angeles', 'Houston', 'New York City', 'Miami', 'Chicago', 'Other'],
+    
     default: 'Other',
   },
   state: {
     type: String,
-    enum: ['California', 'Texas', 'New York', 'Florida', 'Illinois', 'Other'],
+   
     default: 'Other',
   },
   postalCode: String,
   country: {
     type: String,
-    enum: ['USA', 'Canada', 'UK', 'Australia', 'India', 'Other'],
+    
     default: 'Other',
   },
   email: {
@@ -30,7 +30,7 @@ const addressSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    match: /^\d{10}$/,
+    
   },
 }, { _id: false,timestamps: true });
 
@@ -77,16 +77,16 @@ const userSchema=new mongoose.Schema({
     },
     phone: {
     type: String,
-    match: /^\d{10}$/,
+    
   },
   country: {
     type: String,
-    enum: ['USA', 'Canada', 'UK', 'Australia', 'India', 'Other'],
+    
     default: 'Other',
   },
   state: {
     type: String,
-    enum: ['California', 'Texas', 'New York', 'Florida', 'Illinois', 'Other'],
+    
     default: 'Other',
   },
   zip: String,

@@ -4,6 +4,7 @@ import Order from '../../models/product/order.model.js';
 import Cart from '../../models/cart.model.js';
 import { getCartIdentifier } from "../../services/cartIdentifier.js";
 import dotenv from 'dotenv';
+import User from '../../models/user.model.js';
 
 import mongoose from 'mongoose';
 import { mutateStock } from "../../services/stripe/mutateStock.js";
@@ -112,29 +113,137 @@ export const handleStripeWebhook = async (req, res) => {
 
 ///////////////////////////////////////////////////
 
+// export async function createOrder(req, res) {
+//   try {
+//     const id = getCartIdentifier(req);
+//     if (!id) return res.status(400).json({ message: 'Cart identifier required' });
+
+//     let { sessionId, shippingAddress, billingAddress, paymentMethod, notes } = req.body;
+//     if (!sessionId) return res.status(400).json({ message: 'sessionId required' });
+//     if (!shippingAddress || !billingAddress) {
+//       return res.status(400).json({ message: 'shipping and billing addresses required' });
+//     }
+
+
+// //////////////////////////////////////////////////////////
+//     const session = await retrieveStripeSession(sessionId);
+//     const paymentIntentId = session?.payment_intent;
+//     if (!paymentIntentId) {
+//       return res.status(400).json({ message: 'Payment intent ID missing from Stripe session' });
+//     }
+
+    
+//     const paymentIntent = await retrievePaymentIntent(paymentIntentId);
+//     if (!paymentIntent || paymentIntent.status !== 'succeeded') {
+//       return res.status(400).json({ message: 'Payment was not successful' });
+//     }
+//     /////////////////////////////////////////////////////////
+
+//     const cart = await Cart.findOne(
+//       id.type === 'user' ? { user: id.id } : { sessionId: id.id }
+//     ).populate('items.product');
+
+//     if (!cart || !cart.items.length) {
+//       return res.status(400).json({ message: 'Cart is empty or not found' });
+//     }
+
+
+//     ////byDefault shiiping and billing address/////////////////////////////////
+//      if (id.type === 'user') {
+//       const user = await User.findById(id.id).lean();
+//       if (!shippingAddress) shippingAddress = user.shippingAddress;
+//       if (!billingAddress) billingAddress = user.billingAddress;
+//     }
+
+//     // Validate: must have both addresses
+//     if (!shippingAddress || !billingAddress) {
+//       return res.status(400).json({ message: 'Shipping and billing addresses are required' });
+//     }
+
+//     /////////////////////////////////////////////////////////////////////
+
+//     const linesForStock = [];
+//     const items = cart.items.map(item => {
+//       const p = item.product;
+//       const v = p.variations.find(v => v.variantSKU.toLowerCase() === item.variation.toLowerCase());
+//       if (!v) throw new Error(`Variation ${item.variation} missing`);
+
+//       linesForStock.push({ productId: p._id, sku: v.variantSKU, qty: item.quantity });
+//       const unit = v.discountPrice > 0 ? v.discountPrice : v.price;
+//       return {
+//         product: { _id: p._id, title: p.title, description: p.description, image: p.images[0]?.url },
+//         variation: { sku: v.variantSKU, material: v.attributes.material, color: v.attributes.color, price: unit, discountPrice: v.discountPrice },
+//         quantity: item.quantity,
+//         total: unit * item.quantity
+//       };
+//     });
+
+//     const totalAmount = items.reduce((sum, x) => sum + x.total, 0);
+
+//     const order = new Order({
+//       user: id.type === 'user' ? id.id : null,
+//       sessionId,
+//       items,
+//       shippingAddress,
+//       billingAddress,
+//       totalAmount,
+//       currency: 'usd',
+//       payment: { method: paymentMethod, status: 'Paid', sessionId, paymentIntentId },
+//       notes,
+//       linesForStock
+//     });
+
+//     await order.save();
+//     // await mutateStock(linesForStock, 'decrease');
+//     await Cart.deleteOne({ _id: cart._id });
+
+
+
+//     res.status(201).json({ message: 'Order created', orderId: order._id, order });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ message: 'Internal server error', error: err.message });
+//   }
+// }
+
+///////////////////////////
+
 export async function createOrder(req, res) {
   try {
     const id = getCartIdentifier(req);
     if (!id) return res.status(400).json({ message: 'Cart identifier required' });
 
-    const { sessionId, shippingAddress, billingAddress, paymentMethod, notes } = req.body;
+    let { sessionId, shippingAddress, billingAddress, paymentMethod, notes } = req.body;
+
     if (!sessionId) return res.status(400).json({ message: 'sessionId required' });
+
+    // Fetch user addresses if user is logged in
+    if (id.type === 'user') {
+      const user = await User.findById(id.id).lean();
+      if (!shippingAddress) shippingAddress = user.shippingAddress;
+      if (!billingAddress) billingAddress = user.billingAddress;
+    }
+
+  
+
+    // Final check for addresses (mandatory)
     if (!shippingAddress || !billingAddress) {
       return res.status(400).json({ message: 'shipping and billing addresses required' });
     }
 
+    // Stripe payment validation
     const session = await retrieveStripeSession(sessionId);
     const paymentIntentId = session?.payment_intent;
     if (!paymentIntentId) {
       return res.status(400).json({ message: 'Payment intent ID missing from Stripe session' });
     }
 
-    
     const paymentIntent = await retrievePaymentIntent(paymentIntentId);
     if (!paymentIntent || paymentIntent.status !== 'succeeded') {
       return res.status(400).json({ message: 'Payment was not successful' });
     }
 
+    // Cart and items
     const cart = await Cart.findOne(
       id.type === 'user' ? { user: id.id } : { sessionId: id.id }
     ).populate('items.product');
@@ -146,14 +255,28 @@ export async function createOrder(req, res) {
     const linesForStock = [];
     const items = cart.items.map(item => {
       const p = item.product;
-      const v = p.variations.find(v => v.variantSKU.toLowerCase() === item.variation.toLowerCase());
+      const v = p.variations.find(
+        v => v.variantSKU.toLowerCase() === item.variation.toLowerCase()
+      );
       if (!v) throw new Error(`Variation ${item.variation} missing`);
 
       linesForStock.push({ productId: p._id, sku: v.variantSKU, qty: item.quantity });
       const unit = v.discountPrice > 0 ? v.discountPrice : v.price;
+
       return {
-        product: { _id: p._id, title: p.title, description: p.description, image: p.images[0]?.url },
-        variation: { sku: v.variantSKU, material: v.attributes.material, color: v.attributes.color, price: unit, discountPrice: v.discountPrice },
+        product: {
+          _id: p._id,
+          title: p.title,
+          description: p.description,
+          image: p.images[0]?.url
+        },
+        variation: {
+          sku: v.variantSKU,
+          material: v.attributes.material,
+          color: v.attributes.color,
+          price: unit,
+          discountPrice: v.discountPrice
+        },
         quantity: item.quantity,
         total: unit * item.quantity
       };
@@ -169,23 +292,45 @@ export async function createOrder(req, res) {
       billingAddress,
       totalAmount,
       currency: 'usd',
-      payment: { method: paymentMethod, status: 'Paid', sessionId, paymentIntentId },
+      payment: {
+        method: paymentMethod,
+        status: 'Paid',
+        sessionId,
+        paymentIntentId
+      },
       notes,
       linesForStock
     });
 
     await order.save();
-    // await mutateStock(linesForStock, 'decrease');
     await Cart.deleteOne({ _id: cart._id });
 
+    // Fetch user's default addresses if available
+    const userData = id.type === 'user'
+      ? await User.findById(id.id).select('shippingAddress billingAddress').lean()
+      : null;
 
-
-    res.status(201).json({ message: 'Order created', orderId: order._id, order });
+    res.status(201).json({
+      message: 'Order created',
+      orderId: order._id,
+      order,
+      defaultAddresses: userData
+        ? {
+            shippingAddress: userData.shippingAddress,
+            billingAddress: userData.billingAddress
+          }
+        : null
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Internal server error', error: err.message });
+    console.error('Order creation error:', err);
+    res.status(500).json({
+      message: 'Internal server error',
+      error: err.message
+    });
   }
 }
+
+////////////////////////////////////////
 
 
 export async function getOrderById(req, res) {
@@ -197,9 +342,21 @@ export async function getOrderById(req, res) {
     const order = await Order.findById(req.params.id).populate('user').lean();
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    
+    let savedShipping = null;
+    let savedBilling = null;
 
-    res.json(order);
+    if (order.user && order.user.shippingAddress && order.user.billingAddress) {
+      savedShipping = order.user.shippingAddress;
+      savedBilling = order.user.billingAddress;
+    }
+
+     res.status(200).json({
+  order: {
+    ...order,
+    shippingAddressUsed: order.shippingAddress,
+    billingAddressUsed: order.billingAddress
+  }
+});
 
 
 

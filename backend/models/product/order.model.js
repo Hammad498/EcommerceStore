@@ -28,22 +28,58 @@ const OrderItemSchema = new mongoose.Schema({
   total: { type: Number, required: true }
 });
 
+
+const addressSchema = new mongoose.Schema({
+  firstName: String,
+  lastName: String,
+  companyName: String,
+  addressLine1: String,
+  addressLine2: String,
+  city: {
+    type: String,
+   
+    default: 'Other',
+  },
+  state: {
+    type: String,
+   
+    default: 'Other',
+  },
+  postalCode: String,
+  country: {
+    type: String,
+    
+    default: 'Other',
+  },
+  email: {
+    type: String,
+    match: /.+\@.+\..+/,
+  },
+  phone: {
+    type: String,
+    
+  },
+}, { _id: false });
+
+
+
+
+
+
+
+
+
+
+
 const OrderSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   sessionId: { type: String, default: null },
   items: [OrderItemSchema],
-  shippingAddress: {
-    city: String,
-    state: String,
-    postalCode: String,
-    country: String
-  },
-  billingAddress: {
-    city: String,
-    state: String,
-    postalCode: String,
-    country: String
-  },
+
+  shippingAddress: addressSchema,
+  billingAddress: addressSchema,
+
+
   totalAmount: { type: Number, required: true },
   currency: { type: String, default: 'usd' },
   payment: {
