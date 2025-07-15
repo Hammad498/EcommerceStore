@@ -367,6 +367,73 @@ export const deleteOrder = async (req, res) => {
     }
 };
 
+///////////////////////////////////////////////
+
+
+export const getUserOrdersPaginated=async(req,res)=>{
+  try {
+    const userId=req.user._id;
+    const page=parseInt(req.query.page) || 1;
+    const limit=parseInt(req.query.limit) || 10;
+    const skip=(page - 1) * limit;
+
+    const totalOrders=await Order.countDocuments({user:userId});
+    const totalPages=Math.ceil(totalOrders / limit);
+
+    const orders=await Order.find({user:userId}).skip(skip).limit(limit).select('_id deliveryStatus createdAt totalAmount totalQuantity items').lean();
+    if(!orders ||orders.length===0){
+      return res.status(404).json({
+        message:"No orders found for this user",
+        success:false,
+        orders:[],
+        totalOrders:0,
+      })
+    }
+
+    const mapStatus=(status)=>{
+      switch(status){
+        case 'Pending':
+          return 'In Process';
+        case 'Processing':
+          return 'Processing';
+        case 'Shipped':
+          return 'Shipped';
+        case 'Delivered':
+          return 'Completed';
+        case 'Cancelled':
+          return 'Cancelled';
+        default:
+          return 'Unknown';
+      }
+    }
+
+    const formatted = orders.map((order) => ({
+      order: order._id,
+      status: mapStatus(order.deliveryStatus),
+      date: order.createdAt,
+      total: `$${order.totalAmount.toFixed(2)} (${order.items.length} items)`
+    }));
+
+    res.status(200).json({
+      message: "Orders fetched successfully",
+      success: true,
+      orders: formatted,
+      totalOrders,
+      totalPages,
+      currentPage: page
+    });
+
+  } catch (error) {
+    console.error("Error fetching paginated user orders:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      success: false,
+      orders: [],
+      totalOrders: 0
+    });
+  }
+}
+
 
 
 

@@ -9,7 +9,8 @@ import {
   updateOrderStatus,
   getAllOrders,
   getOrdersByStatus,
-  deleteOrder
+  deleteOrder,
+  getUserOrdersPaginated
 } from '../../controllers/Order/order.controller.js';
 
 import { isAdmin } from '../../middlewares/roles/isAdmin.js';
@@ -47,5 +48,9 @@ router.get('/user', isUser, getOrdersByUser);
 
 //  Get specific order (user or admin)
 router.get('/:id', isUser, getOrderById);
+
+
+//for user dashboard (user all orders)
+router.get('/paginated',isUser,getUserOrdersPaginated);
 
 export default router;
