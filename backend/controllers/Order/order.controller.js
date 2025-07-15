@@ -550,7 +550,56 @@ export const orderItemsForThatorder = async (req, res) => {
   }
 }
 
+//////////////////////////////////
 
+
+
+export const createUserFeedback = async (req, res) => {
+  try {
+    const { orderId, rating, comment } = req.body;
+
+    if (!orderId || !rating) {
+      return res.status(400).json({ message: 'Order ID and rating are required' });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (order.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'You can only provide feedback for your own orders' });
+    }
+
+    // Ensure array exists
+    order.orderFeedback = order.orderFeedback || [];
+
+    const feedback = {
+      user: req.user._id,
+      rating,
+      comment: comment || '',
+      createdAt: new Date()
+    };
+
+    order.orderFeedback.push(feedback);
+
+    // Calculate average rating
+    const avgRating = order.orderFeedback.reduce((sum, f) => sum + f.rating, 0) / order.orderFeedback.length;
+
+    order.feedback = {
+      rating: avgRating,
+      comment: order.orderFeedback.map(f => f.comment).join(' | ')
+    };
+
+    await order.save();
+
+    res.status(201).json({ message: 'Feedback created successfully', feedback: order.feedback });
+
+  } catch (error) {
+    console.error("Error creating user feedback:", error);
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+};
 
 
 

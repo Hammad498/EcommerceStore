@@ -13,7 +13,8 @@ import {
   getUserOrdersPaginated,
   updateTrackHistory,
   deleteTrackingHistory,
-  orderItemsForThatorder
+  orderItemsForThatorder,
+  createUserFeedback
 } from '../../controllers/Order/order.controller.js';
 
 import { isAdmin } from '../../middlewares/roles/isAdmin.js';
@@ -62,6 +63,9 @@ router.put('/tracking/:id',isAdmin,updateTrackHistory);
 
 //delete trackingHistory with id of that trackingHistory OnlyAdmin
 router.delete('/delete/:id',isAdmin,deleteTrackingHistory);
+
+
+router.post('/orderRating',isUser,createUserFeedback);
 
 
 
