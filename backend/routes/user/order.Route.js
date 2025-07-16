@@ -14,13 +14,19 @@ import {
   updateTrackHistory,
   deleteTrackingHistory,
   orderItemsForThatOrder,
-  createUserFeedback
+  createUserFeedback,
+
 } from '../../controllers/Order/order.controller.js';
 
 import { isAdmin } from '../../middlewares/roles/isAdmin.js';
 import { isUser } from '../../middlewares/roles/isUser.js';
 
-import { validateCreateOrder,validateCheckoutSession,validateFeedbackInput } from '../../validation/validateOrder.js';
+import { 
+  validateCreateOrder,
+  validateCheckoutSession,
+  validateFeedbackInput,
+
+ }  from '../../validation/validateOrder.js';
 
 const router = Router();
 
@@ -56,6 +62,7 @@ router.get('/paginated',isUser,getUserOrdersPaginated);
 //order detail page for userDashboard
 router.get('/orderProducts',isUser,orderItemsForThatOrder);
 
+
 //  Get specific order (user or admin)
 router.get('/:id', isUser, getOrderById);
 
@@ -68,7 +75,6 @@ router.delete('/delete/:id',isAdmin,deleteTrackingHistory);
 
 
 router.post('/orderRating',isUser,validateFeedbackInput,createUserFeedback);
-
 
 
 
