@@ -12,79 +12,8 @@ import { mutateStock } from "../../services/stripe/mutateStock.js";
 
 
 
+
 dotenv.config();
-
-export async function createCheckoutSession(req, res) {
-  try {
-    const id = getCartIdentifier(req);
-    if (!id) return res.status(400).json({ message: 'Cart identifier required' });
-
-    const cart = await Cart.findOne(
-      id.type === 'user' ? { user: id.id } : { sessionId: id.id }
-    ).populate('items.product');
-
-    if (!cart || !cart.items.length) {
-      return res.status(400).json({ message: 'Cart is empty' });
-    }
-
-    const cartItems = cart.items.map(item => {
-      const p = item.product;
-      const v = p.variations.find(v => v.variantSKU.toLowerCase() === item.variation.toLowerCase());
-      if (!v) throw new Error(`Variation ${item.variation} not found on ${p.title}`);
-
-      return {
-        product: { _id: p._id, name: p.title, description: p.description, image: p.images[0]?.url },
-        variantSKU: v.variantSKU,
-        quantity: item.quantity,
-        price: v.discountPrice > 0 ? v.discountPrice : v.price,
-        discountPrice: v.discountPrice
-      };
-    });
-
-    const session = await createStripeCheckoutSession({
-      user: id.type === 'user' ? { _id: id.id, email: req.user?.email } : null,
-      cartItems,
-      successUrl: `${process.env.CLIENT_URL}/order/success`,
-      cancelUrl: `${process.env.CLIENT_URL}/cart`
-    });
-
-    res.json({ sessionId: session.id, url: session.url });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Internal server error', error: err.message });
-  }
-}
-
-/////////////////////////////////
-
-
-
-
-export const handleStripeWebhook = async (req, res) => {
-  try {
-    const event = verifyStripeWebHook(req, res);
-
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-
-      const order = await Order.findById(session.metadata.orderId);
-      if (order) {
-        order.payment.paymentIntentId = session.payment_intent;
-        order.payment.status = 'Paid';
-        await order.save();
-        console.log('payemntIntentId for the order is : ',order.payment.paymentIntentId);
-      }
-    }
-
-    res.status(200).json({ received: true,paymentIntentId: event.data.object.payment_intent });
-    console.log('Webhook received and processed successfully');
-  } catch (err) {
-    console.error('Webhook Error:', err.message);
-    res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-};
-
-/////////////////////
 
 
 export async function createOrder(req, res) {
@@ -92,9 +21,9 @@ export async function createOrder(req, res) {
     const id = getCartIdentifier(req);
     if (!id) return res.status(400).json({ message: 'Cart identifier required' });
 
-    let { sessionId, shippingAddress, billingAddress, paymentMethod, notes } = req.body;
+    let { shippingAddress, billingAddress, paymentMethod, notes } = req.body;
 
-    if (!sessionId) return res.status(400).json({ message: 'sessionId required' });
+    // if (!sessionId) return res.status(400).json({ message: 'sessionId required' });
 
     // Fetch user addresses if user is logged in
     if (id.type === 'user') {
@@ -165,7 +94,7 @@ export async function createOrder(req, res) {
 
     const order = new Order({
       user: id.type === 'user' ? id.id : null,
-      sessionId,
+      // sessionId,
       items,
       shippingAddress,
       billingAddress,
@@ -173,9 +102,9 @@ export async function createOrder(req, res) {
       currency: 'usd',
       payment: {
         method: paymentMethod,
-        status: 'Paid',
-        sessionId,
-        paymentIntentId
+        status: 'Pending',
+        // sessionId,
+        // paymentIntentId
       },
       notes,
       linesForStock
@@ -185,20 +114,20 @@ export async function createOrder(req, res) {
     await Cart.deleteOne({ _id: cart._id });
 
     // Fetch user's default addresses if available
-    const userData = id.type === 'user'
-      ? await User.findById(id.id).select('shippingAddress billingAddress').lean()
-      : null;
+    // const userData = id.type === 'user'
+    //   ? await User.findById(id.id).select('shippingAddress billingAddress').lean()
+    //   : null;
 
     res.status(201).json({
       message: 'Order created',
       orderId: order._id,
       order,
-      defaultAddresses: userData
-        ? {
-            shippingAddress: userData.shippingAddress,
-            billingAddress: userData.billingAddress
-          }
-        : null
+      // defaultAddresses: userData
+      //   ? {
+      //       shippingAddress: userData.shippingAddress,
+      //       billingAddress: userData.billingAddress
+      //     }
+      //   : null
     });
   } catch (err) {
     console.error('Order creation error:', err);
@@ -208,6 +137,161 @@ export async function createOrder(req, res) {
     });
   }
 }
+
+
+
+
+
+
+////////////////////////////////////////
+
+// export async function createCheckoutSession(req, res) {
+//   try {
+//     const id = getCartIdentifier(req);
+//     if (!id) return res.status(400).json({ message: 'Cart identifier required' });
+
+
+//     // //////////////////////////////////////////////////////////////////////////////
+//     // const {orderId}=req.body;
+//     // if(!orderId){
+//     //   return res.status(400).json({ message: 'Order ID is required' });
+//     // }
+
+//     // const order=await Order.findById(orderId).lean();
+//     // if(!order){
+//     //   return res.status(404).json({ message: 'Order not found' });
+//     // }
+
+//     const cart = await Cart.findOne(
+//       id.type === 'user' ? { user: id.id } : { sessionId: id.id }
+//     ).populate('items.product');
+
+//     if (!cart || !cart.items.length) {
+//       return res.status(400).json({ message: 'Cart is empty' });
+//     }
+
+//     const cartItems = cart.items.map(item => {
+//       const p = item.product;
+//       const v = p.variations.find(v => v.variantSKU.toLowerCase() === item.variation.toLowerCase());
+//       if (!v) throw new Error(`Variation ${item.variation} not found on ${p.title}`);
+
+//       return {
+//         product: { _id: p._id, name: p.title, description: p.description, image: p.images[0]?.url },
+//         variantSKU: v.variantSKU,
+//         quantity: item.quantity,
+//         price: v.discountPrice > 0 ? v.discountPrice : v.price,
+//         discountPrice: v.discountPrice
+//       };
+//     });
+
+//     const session = await createStripeCheckoutSession({
+//       user: id.type === 'user' ? { _id: id.id, email: req.user?.email } : null,
+//       cartItems,
+//       successUrl: `${process.env.CLIENT_URL}/order/success`,
+//       cancelUrl: `${process.env.CLIENT_URL}/cart`
+//     });
+
+//     res.json({ sessionId: session.id, url: session.url });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ message: 'Internal server error', error: err.message });
+//   }
+// }
+
+/////////////////////////////////
+
+
+
+
+// export const handleStripeWebhook = async (req, res) => {
+//   try {
+//     const event = verifyStripeWebHook(req, res);
+
+//     if (event.type === 'checkout.session.completed') {
+//       const session = event.data.object;
+
+//       const order = await Order.findById(session.metadata.orderId);
+//       if (order) {
+//         order.payment.paymentIntentId = session.payment_intent;
+//         order.payment.status = 'Paid';
+//         await order.save();
+//         console.log('payemntIntentId for the order is : ',order.payment.paymentIntentId);
+//       }
+//     }
+
+//     res.status(200).json({ received: true,paymentIntentId: event.data.object.payment_intent });
+//     console.log('Webhook received and processed successfully');
+//   } catch (err) {
+//     console.error('Webhook Error:', err.message);
+//     res.status(400).send(`Webhook Error: ${err.message}`);
+//   }
+// };
+
+/////////////////////
+
+
+export async function createCheckoutSession(req, res) {
+  try {
+    const { orderId } = req.body;
+    if (!orderId) return res.status(400).json({ message: 'orderId is required' });
+
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    const cartItems = order.items.map(item => ({
+      product: { name: item.product.title, description: item.product.description, image: item.product.image },
+      variantSKU: item.variation.sku,
+      quantity: item.quantity,
+      price: item.variation.price,
+      discountPrice: item.variation.discountPrice
+    }));
+
+    const session = await createStripeCheckoutSession({
+      user: order.user ? { _id: order.user, email: req.user?.email } : null,
+      cartItems,
+      successUrl: `${process.env.CLIENT_URL}/order/success`,
+      cancelUrl: `${process.env.CLIENT_URL}/cart`,
+      orderId: order._id.toString()
+    });
+
+    res.json({ sessionId: session.id, url: session.url });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Internal server error', error: err.message });
+  }
+}
+
+
+
+
+
+// ------------------------------
+// 4. STRIPE WEBHOOK HANDLER
+// ------------------------------
+export const handleStripeWebhook = async (req, res) => {
+  try {
+    const event = verifyStripeWebHook(req, res);
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const orderId = session.metadata.orderId;
+      const paymentIntentId = session.payment_intent;
+
+      const order = await Order.findById(orderId);
+      if (order) {
+        order.payment.paymentIntentId = paymentIntentId;
+        order.payment.status = 'Paid';
+        await order.save();
+        console.log('Order paid:', order._id);
+      }
+    }
+
+    res.status(200).json({ received: true });
+  } catch (err) {
+    console.error('Webhook Error:', err.message);
+    res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+}; 
 
 ////////////////////////////////////////
 
