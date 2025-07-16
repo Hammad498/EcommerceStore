@@ -11,6 +11,131 @@ import { enrichCartItemsWithPrice } from "../../services/enrichCartItemsWithPric
 
 
 
+// export const addToCart = async (req, res) => {
+//   try {
+//     const { product, variation, quantity } = req.body;
+
+//     if (!product || !variation || !quantity) {
+//       return res.status(400).json({ message: "Product, variation, and quantity are required" });
+//     }
+
+//     const identifier = getCartIdentifier(req);
+//     if (!identifier) {
+//       return res.status(400).json({ message: "User or session ID required" });
+//     }
+
+//     const productDoc = await Product.findById(product);
+//     if (!productDoc) {
+//       return res.status(404).json({ message: "Product not found" });
+//     }
+
+//     const matchedVariation = productDoc.variations.find(
+//       (v) => v.variantSKU.toLowerCase() === variation.toLowerCase()
+//     );
+
+//     if (!matchedVariation) {
+//       return res.status(400).json({ message: "Variation not found for product" });
+//     }
+
+//     ////stock check before adding in the cart (2 conditions 1.if req is greater than stock and 2.not null(req))
+//     const reqQty=parseInt(quantity);
+//     if( matchedVariation && matchedVariation.stock && matchedVariation.stock >=0 &&    matchedVariation.stock < reqQty){
+//       return res.status(400).json({
+//         message:`Req qty ${reqQty} exceeds available stock ${matchedVariation.stock} for this variation`,
+//         error
+//       })
+//     }
+
+//     if(reqQty <=0){
+//       return res.status(400).json({
+//         message: "Quantity must be greater than zero"
+//       })
+//     }
+
+//     const query = identifier.type === "user"
+//       ? { user: identifier.id, isOrdered: false }
+//       : { sessionId: identifier.id, isOrdered: false };
+
+//     let cart = await Cart.findOne(query);
+
+//     if (cart) {
+//       const existingItem = cart.items.find(
+//         item => item.product.toString() === product &&
+//                 item.variation === matchedVariation.variantSKU
+//       );
+
+//       if (existingItem) {
+//         const newQty=existingItem.quantity + reqQty;
+//         if(newQty >matchedVariation.stock){
+//           return res.status(400).json({
+//             message: `Req qty ${newQty} exceeds available stock ${matchedVariation.stock} for this variation`
+//           });
+//         }
+//         existingItem.quantity = newQty;
+//       } else {
+//         cart.items.push({ product, variation: matchedVariation.variantSKU, quantity: reqQty });
+//       }
+
+//       // matchedVariation.stock -= reqQty; 
+
+//       // await Product.updateOne(
+//       //   { _id: product, "variations.variantSKU": matchedVariation.variantSKU },
+//       //   { $set: { "variations.$.stock": matchedVariation.stock } }
+//       // );
+
+//       cart.updatedAt = new Date();
+//       await cart.save();
+//     } else {
+//       cart = new Cart({
+//         user: identifier.type === "user" ? identifier.id : undefined,
+//         sessionId: identifier.type === "guest" ? identifier.id : undefined,
+//         items: [{ product, variation: matchedVariation.variantSKU, quantity: reqQty }],
+//         updatedAt: new Date()
+//       });
+
+//       matchedVariation.stock -= reqQty;
+//       await Product.updateOne(
+//         { _id: product, "variations.variantSKU": matchedVariation.variantSKU },
+//         { $set: { "variations.$.stock": matchedVariation.stock } }
+//       );
+//       cart.wasNew = true;
+//       cart.createdAt = new Date();
+//       cart.isOrdered = false; 
+
+//       await cart.save();
+//     }
+
+//     const enrichedCart = await enrichCartItemsWithPrice(cart);
+
+//     return res.status(cart.wasNew ? 201 : 200).json({
+//       message: cart.wasNew ? "Cart created and item added" : "Cart updated",
+//       cart: enrichedCart
+//     });
+
+//   } catch (error) {
+//     console.error("Error adding to cart:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to add item to cart",
+//       error: error.message
+//     });
+//   }
+// };
+
+//////////////////////////////
+
+
+
+
+
+
+
+
+
+
+///////////////////////
+
+
 export const addToCart = async (req, res) => {
   try {
     const { product, variation, quantity } = req.body;
@@ -37,19 +162,16 @@ export const addToCart = async (req, res) => {
       return res.status(400).json({ message: "Variation not found for product" });
     }
 
-    ////stock check before adding in the cart (2 conditions 1.if req is greater than stock and 2.not null(req))
-    const reqQty=parseInt(quantity);
-    if( matchedVariation && matchedVariation.stock && matchedVariation.stock >=0 &&    matchedVariation.stock < reqQty){
-      return res.status(400).json({
-        message:`Req qty ${reqQty} exceeds available stock ${matchedVariation.stock} for this variation`,
-        error
-      })
+    const reqQty = parseInt(quantity);
+
+    if (reqQty <= 0) {
+      return res.status(400).json({ message: "Quantity must be greater than zero" });
     }
 
-    if(reqQty <=0){
+    if (matchedVariation.stock < reqQty) {
       return res.status(400).json({
-        message: "Quantity must be greater than zero"
-      })
+        message: `Req qty ${reqQty} exceeds available stock ${matchedVariation.stock}`
+      });
     }
 
     const query = identifier.type === "user"
@@ -65,23 +187,16 @@ export const addToCart = async (req, res) => {
       );
 
       if (existingItem) {
-        const newQty=existingItem.quantity + reqQty;
-        if(newQty >matchedVariation.stock){
+        const newQty = existingItem.quantity + reqQty;
+        if (newQty > matchedVariation.stock) {
           return res.status(400).json({
-            message: `Req qty ${newQty} exceeds available stock ${matchedVariation.stock} for this variation`
+            message: `Total qty ${newQty} exceeds available stock ${matchedVariation.stock}`
           });
         }
         existingItem.quantity = newQty;
       } else {
         cart.items.push({ product, variation: matchedVariation.variantSKU, quantity: reqQty });
       }
-
-      matchedVariation.stock -= reqQty; 
-
-      await Product.updateOne(
-        { _id: product, "variations.variantSKU": matchedVariation.variantSKU },
-        { $set: { "variations.$.stock": matchedVariation.stock } }
-      );
 
       cart.updatedAt = new Date();
       await cart.save();
@@ -90,17 +205,10 @@ export const addToCart = async (req, res) => {
         user: identifier.type === "user" ? identifier.id : undefined,
         sessionId: identifier.type === "guest" ? identifier.id : undefined,
         items: [{ product, variation: matchedVariation.variantSKU, quantity: reqQty }],
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        createdAt: new Date(),
+        isOrdered: false
       });
-
-      matchedVariation.stock -= reqQty;
-      await Product.updateOne(
-        { _id: product, "variations.variantSKU": matchedVariation.variantSKU },
-        { $set: { "variations.$.stock": matchedVariation.stock } }
-      );
-      cart.wasNew = true;
-      cart.createdAt = new Date();
-      cart.isOrdered = false; 
 
       await cart.save();
     }
@@ -122,7 +230,15 @@ export const addToCart = async (req, res) => {
   }
 };
 
-//////////////////////////////
+/////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
 
 export const getCart=async(req,res)=>{
     try {

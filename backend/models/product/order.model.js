@@ -88,6 +88,16 @@ const OrderSchema = new mongoose.Schema({
    paymentIntentId: String,
   status: { type: String, enum: ['Pending', 'Paid', 'Refunded'], default: 'Pending' }
   },
+  linesForStock: [
+    {
+      productId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Product'
+      },
+      sku: String,
+      qty: Number
+    }
+  ],
  refunds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Refund' }],
   deliveryStatus: { type: String, default: 'Pending' },
 
