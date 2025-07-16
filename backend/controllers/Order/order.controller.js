@@ -84,129 +84,8 @@ export const handleStripeWebhook = async (req, res) => {
   }
 };
 
-// export const handleStripeWebhook = async (req, res) => {
-//   try {
-//     const event = verifyStripeWebHook(req, res);
+/////////////////////
 
-//     if (event.type === 'checkout.session.completed') {
-//       const session = event.data.object;
-
-//       const order = await Order.findOne({ 'payment.sessionId': session.id }); 
-//       if (order) {
-//         order.payment.paymentIntentId = session.payment_intent;
-//         order.payment.status = 'Paid';
-//         await order.save();
-//         console.log(' paymentIntentId for the order is:', order.payment.paymentIntentId);
-//       } else {
-//         console.warn(' Order not found for session:', session.id);
-//       }
-//     }
-
-//     res.status(200).json({ received: true, paymentIntentId: event.data.object.payment_intent });
-//     console.log(' Webhook received and processed successfully');
-//   } catch (err) {
-//     console.error(' Webhook Error:', err.message);
-//     res.status(400).send(`Webhook Error: ${err.message}`);
-//   }
-// };
-
-
-///////////////////////////////////////////////////
-
-// export async function createOrder(req, res) {
-//   try {
-//     const id = getCartIdentifier(req);
-//     if (!id) return res.status(400).json({ message: 'Cart identifier required' });
-
-//     let { sessionId, shippingAddress, billingAddress, paymentMethod, notes } = req.body;
-//     if (!sessionId) return res.status(400).json({ message: 'sessionId required' });
-//     if (!shippingAddress || !billingAddress) {
-//       return res.status(400).json({ message: 'shipping and billing addresses required' });
-//     }
-
-
-// //////////////////////////////////////////////////////////
-//     const session = await retrieveStripeSession(sessionId);
-//     const paymentIntentId = session?.payment_intent;
-//     if (!paymentIntentId) {
-//       return res.status(400).json({ message: 'Payment intent ID missing from Stripe session' });
-//     }
-
-    
-//     const paymentIntent = await retrievePaymentIntent(paymentIntentId);
-//     if (!paymentIntent || paymentIntent.status !== 'succeeded') {
-//       return res.status(400).json({ message: 'Payment was not successful' });
-//     }
-//     /////////////////////////////////////////////////////////
-
-//     const cart = await Cart.findOne(
-//       id.type === 'user' ? { user: id.id } : { sessionId: id.id }
-//     ).populate('items.product');
-
-//     if (!cart || !cart.items.length) {
-//       return res.status(400).json({ message: 'Cart is empty or not found' });
-//     }
-
-
-//     ////byDefault shiiping and billing address/////////////////////////////////
-//      if (id.type === 'user') {
-//       const user = await User.findById(id.id).lean();
-//       if (!shippingAddress) shippingAddress = user.shippingAddress;
-//       if (!billingAddress) billingAddress = user.billingAddress;
-//     }
-
-//     // Validate: must have both addresses
-//     if (!shippingAddress || !billingAddress) {
-//       return res.status(400).json({ message: 'Shipping and billing addresses are required' });
-//     }
-
-//     /////////////////////////////////////////////////////////////////////
-
-//     const linesForStock = [];
-//     const items = cart.items.map(item => {
-//       const p = item.product;
-//       const v = p.variations.find(v => v.variantSKU.toLowerCase() === item.variation.toLowerCase());
-//       if (!v) throw new Error(`Variation ${item.variation} missing`);
-
-//       linesForStock.push({ productId: p._id, sku: v.variantSKU, qty: item.quantity });
-//       const unit = v.discountPrice > 0 ? v.discountPrice : v.price;
-//       return {
-//         product: { _id: p._id, title: p.title, description: p.description, image: p.images[0]?.url },
-//         variation: { sku: v.variantSKU, material: v.attributes.material, color: v.attributes.color, price: unit, discountPrice: v.discountPrice },
-//         quantity: item.quantity,
-//         total: unit * item.quantity
-//       };
-//     });
-
-//     const totalAmount = items.reduce((sum, x) => sum + x.total, 0);
-
-//     const order = new Order({
-//       user: id.type === 'user' ? id.id : null,
-//       sessionId,
-//       items,
-//       shippingAddress,
-//       billingAddress,
-//       totalAmount,
-//       currency: 'usd',
-//       payment: { method: paymentMethod, status: 'Paid', sessionId, paymentIntentId },
-//       notes,
-//       linesForStock
-//     });
-
-//     await order.save();
-//     // await mutateStock(linesForStock, 'decrease');
-//     await Cart.deleteOne({ _id: cart._id });
-
-
-
-//     res.status(201).json({ message: 'Order created', orderId: order._id, order });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: 'Internal server error', error: err.message });
-//   }
-// }
-
-///////////////////////////
 
 export async function createOrder(req, res) {
   try {
@@ -232,16 +111,16 @@ export async function createOrder(req, res) {
     }
 
     // Stripe payment validation
-    const session = await retrieveStripeSession(sessionId);
-    const paymentIntentId = session?.payment_intent;
-    if (!paymentIntentId) {
-      return res.status(400).json({ message: 'Payment intent ID missing from Stripe session' });
-    }
+    // const session = await retrieveStripeSession(sessionId);
+    // const paymentIntentId = session?.payment_intent;
+    // if (!paymentIntentId) {
+    //   return res.status(400).json({ message: 'Payment intent ID missing from Stripe session' });
+    // }
 
-    const paymentIntent = await retrievePaymentIntent(paymentIntentId);
-    if (!paymentIntent || paymentIntent.status !== 'succeeded') {
-      return res.status(400).json({ message: 'Payment was not successful' });
-    }
+    // const paymentIntent = await retrievePaymentIntent(paymentIntentId);
+    // if (!paymentIntent || paymentIntent.status !== 'succeeded') {
+    //   return res.status(400).json({ message: 'Payment was not successful' });
+    // }
 
     // Cart and items
     const cart = await Cart.findOne(
