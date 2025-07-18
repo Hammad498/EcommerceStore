@@ -16,7 +16,7 @@ export const validateCreateOrder = [
 ];
 
 
-////////////////////////////
+//////////////////////////
 
 
 export const validateCheckoutSession = [
