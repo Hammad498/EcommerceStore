@@ -7,35 +7,7 @@ dotenv.config();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// 1) Create Checkout Session
-// export async function createStripeCheckoutSession({ user, cartItems, successUrl, cancelUrl }) {
-//   const line_items = cartItems.map(item => {
-//     const unit_amount = Math.round(((item.discountPrice > 0 ? item.discountPrice : item.price) || 0) * 100);
-//     const product_data = {
-//       name: item.product.name,
-//       description: item.product.description || ''
-//     };
-//     if (item.product.image) product_data.images = [item.product.image];
-//     return { price_data: { currency: 'usd', product_data, unit_amount }, quantity: item.quantity };
-//   });
 
-//   return await stripe.checkout.sessions.create({
-//     payment_method_types: ['card'],
-//     line_items,
-//     mode: 'payment',
-//     customer_email: user?.email,
-//     success_url: successUrl,
-//     cancel_url: cancelUrl,
-//     metadata: {
-//       userId: user?._id?.toString() || 'guest',
-//       cartItems: JSON.stringify(cartItems.map(i => ({
-//         productId: i.product._id,
-//         variation: i.variantSKU,
-//         quantity: i.quantity
-//       })))
-//     }
-//   });
-// }
 
 export async function createStripeCheckoutSession({ user, cartItems, successUrl, cancelUrl, orderId }) {
   const line_items = cartItems.map(item => {
@@ -84,31 +56,6 @@ export async function retrievePaymentIntent(piId) {
 }
 
 
-
-
-// export const handleStripeWebhook = async (req, res) => {
-//   const sig = req.headers['stripe-signature'];
-//   let event;
-
-//   try {
-//     event = stripe.webhooks.constructEvent(req.rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
-//   } catch (err) {
-//     return res.status(400).send(`Webhook Error: ${err.message}`);
-//   }
-
-//   if (event.type === 'checkout.session.completed') {
-//     const session = event.data.object;
-
-//     const order = await Order.findById(session.metadata.orderId);
-//     if (order) {
-//       order.payment.paymentIntentId = session.payment_intent;
-//       order.payment.status = 'Paid';
-//       await order.save();
-//     }
-//   }
-
-//   res.status(200).json({ received: true });
-// };
 
 
 
